@@ -74,21 +74,29 @@ def keyboard(window, key, scancode, act, mods):
             mj.mj_forward(model, data)
             print("Simulation reset.")
         elif key == glfw.KEY_P:
+            # Get joint ID and addresses
             joint_id = mj.mj_name2id(
                 model, mj.mjtObj.mjOBJ_JOINT, "ball_free_joint")
             pos_addr = model.jnt_qposadr[joint_id]
             vel_addr = model.jnt_dofadr[joint_id]
-            data.qpos[pos_addr:pos_addr+3] = cam.lookat[:3]
-            data.qpos[pos_addr+3:pos_addr+7] = [1, 0, 0, 0]
+
+            # Position: use camera lookat, but set y = floor_height + radius + offset
+            sphere_height = 0.5 + 0.05  # radius + small margin
+            target_pos = cam.lookat.copy()
+            target_pos[1] = sphere_height
+
+            # Update qpos and qvel
+            data.qpos[pos_addr:pos_addr+3] = target_pos
+            data.qpos[pos_addr+3:pos_addr+7] = [1,
+                                                0, 0, 0]  # Identity quaternion
             data.qvel[vel_addr:vel_addr+6] = 0.0
             mj.mj_forward(model, data)
-            print(f"Sphere repositioned to: {cam.lookat}")
+            print(f"Sphere repositioned to: {target_pos}")
 
         elif key == glfw.KEY_R:
             restitution = min(restitution + 0.1, 1.0)
             ball_geom_id = mj.mj_name2id(
                 model, mj.mjtObj.mjOBJ_GEOM, "ball_geom")
-            # solimp format: [margin, value_at_margin, value_at_contact]
             model.geom_solimp[ball_geom_id][2] = restitution
             print(f"Restitution (approx.) increased to {restitution:.2f}")
 
