@@ -18,21 +18,21 @@ from mujoco.glfw import glfw
 last_x, last_y = 0, 0
 left_pressed = False
 right_pressed = False
+viewport_width, viewport_height = 1200, 900
 
-# --- Initialize GLFW First --- #
+# --- Initialize GLFW --- #
 if not glfw.init():
     raise RuntimeError("Could not initialize GLFW")
 
-# --- Create Window --- #
 window = glfw.create_window(
-    1200, 900, "MuJoCo Ball Bounce Simulation", None, None)
+    viewport_width, viewport_height, "MuJoCo Ball Bounce Simulation", None, None)
 if not window:
     glfw.terminate()
     raise RuntimeError("Could not create GLFW window")
 glfw.make_context_current(window)
 glfw.swap_interval(1)  # Enable v-sync
 
-# --- MuJoCo Model Setup --- #
+# --- Load MuJoCo model --- #
 xml_path = os.path.join(os.path.dirname(__file__),
                         "..", "models", "sphere.xml")
 model = mj.MjModel.from_xml_path(xml_path)
@@ -48,11 +48,11 @@ context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
 
 # --- Set Initial Camera Parameters --- #
 cam.azimuth = 90
-cam.elevation = -20
-cam.distance = 5
+cam.elevation = -30
+cam.distance = 6
 cam.lookat = np.array([0.0, 0.5, 0.0])
 
-# --- Callback Handlers --- #
+# --- Callback handlers --- #
 
 
 def keyboard(window, key, scancode, act, mods):
@@ -62,15 +62,15 @@ def keyboard(window, key, scancode, act, mods):
             mj.mj_forward(model, data)
             print("Simulation reset.")
         elif key == glfw.KEY_P:
-            # Find the free joint ID for the ball
             joint_id = mj.mj_name2id(
                 model, mj.mjtObj.mjOBJ_JOINT, "ball_free_joint")
             pos_addr = model.jnt_qposadr[joint_id]
             vel_addr = model.jnt_dofadr[joint_id]
 
-            # Place the sphere at the camera lookat position
+            # Set position and orientation
             data.qpos[pos_addr:pos_addr+3] = cam.lookat[:3]
-            # Reset velocity and angular velocity
+            data.qpos[pos_addr+3:pos_addr+7] = [1,
+                                                0, 0, 0]  # Identity quaternion
             data.qvel[vel_addr:vel_addr+6] = 0.0
             mj.mj_forward(model, data)
             print(f"Sphere repositioned to: {cam.lookat}")
@@ -86,16 +86,16 @@ def mouse_button(window, button, act, mods):
 
 
 def mouse_move(window, xpos, ypos):
-    global last_x, last_y
+    global last_x, last_y, viewport_width, viewport_height
     dx = xpos - last_x
     dy = ypos - last_y
     last_x, last_y = xpos, ypos
     if left_pressed:
-        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ROTATE_V, dx /
-                          float(viewport_height), dy / float(viewport_height), scene, cam)
+        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ROTATE_V,
+                          dx / viewport_height, dy / viewport_height, scene, cam)
     if right_pressed:
-        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_MOVE_H, dx /
-                          float(viewport_height), dy / float(viewport_height), scene, cam)
+        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_MOVE_H,
+                          dx / viewport_height, dy / viewport_height, scene, cam)
 
 
 def scroll(window, xoffset, yoffset):
@@ -103,20 +103,18 @@ def scroll(window, xoffset, yoffset):
                       0, -0.05 * yoffset, scene, cam)
 
 
-# --- Install Callbacks --- #
+# --- Install callbacks --- #
 glfw.set_key_callback(window, keyboard)
 glfw.set_mouse_button_callback(window, mouse_button)
 glfw.set_cursor_pos_callback(window, mouse_move)
 glfw.set_scroll_callback(window, scroll)
 
-# --- Main Simulation Loop --- #
+# --- Main simulation loop --- #
 while not glfw.window_should_close(window):
     time_start = time.time()
 
-    # Advance simulation using MuJoCo's built-in physics engine
     mj.mj_step(model, data)
 
-    # Render
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
     mj.mjv_updateScene(model, data, opt, None, cam,
