@@ -35,7 +35,6 @@ glfw.swap_interval(1)  # Enable v-sync
 # --- MuJoCo Model Setup --- #
 xml_path = os.path.join(os.path.dirname(__file__),
                         "..", "models", "sphere.xml")
-xml_path = os.path.abspath(xml_path)
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
 
@@ -63,13 +62,18 @@ def keyboard(window, key, scancode, act, mods):
             mj.mj_forward(model, data)
             print("Simulation reset.")
         elif key == glfw.KEY_P:
-            # Place the sphere at camera lookat position
-            ball_body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "ball")
-            data.qpos[ball_body_id * 7: ball_body_id * 7 + 3] = cam.lookat[:3]
-            data.qvel[ball_body_id * 6: ball_body_id *
-                      6 + 3] = 0  # Reset velocity
+            # Find the free joint ID for the ball
+            joint_id = mj.mj_name2id(
+                model, mj.mjtObj.mjOBJ_JOINT, "ball_free_joint")
+            pos_addr = model.jnt_qposadr[joint_id]
+            vel_addr = model.jnt_dofadr[joint_id]
+
+            # Place the sphere at the camera lookat position
+            data.qpos[pos_addr:pos_addr+3] = cam.lookat[:3]
+            # Reset velocity and angular velocity
+            data.qvel[vel_addr:vel_addr+6] = 0.0
             mj.mj_forward(model, data)
-            print(f"Sphere repositioned to camera lookat: {cam.lookat}")
+            print(f"Sphere repositioned to: {cam.lookat}")
 
 
 def mouse_button(window, button, act, mods):
@@ -105,14 +109,14 @@ glfw.set_mouse_button_callback(window, mouse_button)
 glfw.set_cursor_pos_callback(window, mouse_move)
 glfw.set_scroll_callback(window, scroll)
 
-# --- Main Simulation Loop (runs until the window is closed) --- #
+# --- Main Simulation Loop --- #
 while not glfw.window_should_close(window):
     time_start = time.time()
 
     # Advance simulation using MuJoCo's built-in physics engine
     mj.mj_step(model, data)
 
-    # Render the scene
+    # Render
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
     mj.mjv_updateScene(model, data, opt, None, cam,
@@ -122,7 +126,6 @@ while not glfw.window_should_close(window):
     glfw.swap_buffers(window)
     glfw.poll_events()
 
-    # Maintain real-time simulation pace
     elapsed = time.time() - time_start
     if model.opt.timestep - elapsed > 0:
         time.sleep(model.opt.timestep - elapsed)

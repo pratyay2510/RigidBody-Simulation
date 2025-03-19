@@ -1,25 +1,21 @@
 <mujoco model="sphere_model">
   <!-- Set simulation options with explicit gravity in the -y direction -->
   <option timestep="0.01" gravity="0 -9.81 0" />
-  
+
   <!-- World body definition -->
   <worldbody>
-    <!-- Floor: A static, horizontal plane at y = 0.
-         The floor is given a gray color and covers a large area. -->
-    <geom name="floor" type="plane" pos="0 0 0" size="5 5 0.1"
-          rgba="0.7 0.7 0.7 1"/>
+    <!-- Floor: A static, horizontal plane at y = 0 -->
+    <geom name="floor" type="plane" pos="0 0 0" size="5 5 0.1" rgba="0.7 0.7 0.7 1"/>
     
-    <!-- Sphere body: Initially placed above the floor (y = 1) -->
+    <!-- Sphere body initially placed above the floor -->
     <body name="ball" pos="0 1 0">
-      <!-- Free joint for full spatial motion -->
-      <joint type="free"/>
+      <!-- Free joint with a name for reference -->
+      <joint name="ball_free_joint" type="free"/>
       
-      <!-- Sphere geometry: a red sphere of radius 0.5, with no friction -->
-      <geom name="ball_geom" type="sphere" size="0.5" rgba="1 0 0 1"
-            friction="0 0 0"/>
+      <!-- Sphere geometry -->
+      <geom name="ball_geom" type="sphere" size="0.5" rgba="1 0 0 1" friction="0 0 0"/>
       
-      <!-- Inertial properties computed for a solid sphere:
-           For mass = 1 and radius = 0.5, I = (2/5)*1*0.5^2 = 0.1 -->
+      <!-- Inertial properties for a solid sphere -->
       <inertial pos="0 0 0" mass="1" diaginertia="0.1 0.1 0.1"/>
     </body>
   </worldbody>
