@@ -84,25 +84,18 @@ def keyboard(window, key, scancode, act, mods):
             mj.mj_forward(model, data)
             print(f"Sphere repositioned to: {cam.lookat}")
 
-        elif key == glfw.KEY_R:  # Increase restitution
+        elif key == glfw.KEY_R:
             restitution = min(restitution + 0.1, 1.0)
-            model.opt.restitution = restitution
-            print(f"Restitution increased to {restitution:.2f}")
-        # (If shift pressed: decrease restitution)
-        elif key == glfw.KEY_R and (mods & glfw.MOD_SHIFT):
-            restitution = max(restitution - 0.1, 0.0)
-            model.opt.restitution = restitution
-            print(f"Restitution decreased to {restitution:.2f}")
+            ball_geom_id = mj.mj_name2id(
+                model, mj.mjtObj.mjOBJ_GEOM, "ball_geom")
+            # solimp format: [margin, value_at_margin, value_at_contact]
+            model.geom_solimp[ball_geom_id][2] = restitution
+            print(f"Restitution (approx.) increased to {restitution:.2f}")
+
         elif key == glfw.KEY_G:
             gravity_index = (gravity_index + 1) % len(gravity_modes)
             model.opt.gravity[:] = gravity_modes[gravity_index]
             print(f"Gravity switched to: {model.opt.gravity}")
-
-        # Example structure for future friction control:
-        # elif key == glfw.KEY_F:
-        #     print("Future: Increase friction value for floor or sphere.")
-        # elif key == glfw.KEY_F and (mods & glfw.MOD_SHIFT):
-        #     print("Future: Decrease friction value for floor or sphere.")
 
 
 def mouse_button(window, button, act, mods):
