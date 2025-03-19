@@ -5,6 +5,7 @@ Entry point for the rigid body simulation Phase 1 using MuJoCo for rendering.
 This module initializes a MuJoCo model (defined in models/sphere.xml)
 that contains a free body representing a sphere bouncing on a static floor.
 We use MuJoCo's built-in physics engine (mj_step) for simulation (including gravity and collisions).
+It also supports real-time adjustments of gravity, restitution, and (optionally) friction.
 """
 
 import os
@@ -14,7 +15,7 @@ import numpy as np
 import mujoco as mj
 from mujoco.glfw import glfw
 
-# Global variables for mouse interaction
+# Global variables
 last_x, last_y = 0, 0
 left_pressed = False
 right_pressed = False
@@ -30,13 +31,23 @@ if not window:
     glfw.terminate()
     raise RuntimeError("Could not create GLFW window")
 glfw.make_context_current(window)
-glfw.swap_interval(1)  # Enable v-sync
+glfw.swap_interval(1)
 
 # --- Load MuJoCo model --- #
 xml_path = os.path.join(os.path.dirname(__file__),
                         "..", "models", "sphere.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
+
+# Adjustable parameters
+restitution = 1.0
+gravity_modes = [
+    np.array([0, -9.81, 0]),
+    np.array([0, 0, 0]),
+    np.array([0, -3.0, 0])
+]
+gravity_index = 0
+model.opt.gravity[:] = gravity_modes[gravity_index]
 
 # --- Create visualization objects --- #
 cam = mj.MjvCamera()
@@ -56,6 +67,7 @@ cam.lookat = np.array([0.0, 0.5, 0.0])
 
 
 def keyboard(window, key, scancode, act, mods):
+    global restitution, gravity_index
     if act == glfw.PRESS:
         if key == glfw.KEY_BACKSPACE:
             mj.mj_resetData(model, data)
@@ -66,14 +78,31 @@ def keyboard(window, key, scancode, act, mods):
                 model, mj.mjtObj.mjOBJ_JOINT, "ball_free_joint")
             pos_addr = model.jnt_qposadr[joint_id]
             vel_addr = model.jnt_dofadr[joint_id]
-
-            # Set position and orientation
             data.qpos[pos_addr:pos_addr+3] = cam.lookat[:3]
-            data.qpos[pos_addr+3:pos_addr+7] = [1,
-                                                0, 0, 0]  # Identity quaternion
+            data.qpos[pos_addr+3:pos_addr+7] = [1, 0, 0, 0]
             data.qvel[vel_addr:vel_addr+6] = 0.0
             mj.mj_forward(model, data)
             print(f"Sphere repositioned to: {cam.lookat}")
+
+        elif key == glfw.KEY_R:  # Increase restitution
+            restitution = min(restitution + 0.1, 1.0)
+            model.opt.restitution = restitution
+            print(f"Restitution increased to {restitution:.2f}")
+        # (If shift pressed: decrease restitution)
+        elif key == glfw.KEY_R and (mods & glfw.MOD_SHIFT):
+            restitution = max(restitution - 0.1, 0.0)
+            model.opt.restitution = restitution
+            print(f"Restitution decreased to {restitution:.2f}")
+        elif key == glfw.KEY_G:
+            gravity_index = (gravity_index + 1) % len(gravity_modes)
+            model.opt.gravity[:] = gravity_modes[gravity_index]
+            print(f"Gravity switched to: {model.opt.gravity}")
+
+        # Example structure for future friction control:
+        # elif key == glfw.KEY_F:
+        #     print("Future: Increase friction value for floor or sphere.")
+        # elif key == glfw.KEY_F and (mods & glfw.MOD_SHIFT):
+        #     print("Future: Decrease friction value for floor or sphere.")
 
 
 def mouse_button(window, button, act, mods):
