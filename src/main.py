@@ -19,7 +19,7 @@ if not glfw.init():
     raise RuntimeError("Could not initialize GLFW")
 
 window = glfw.create_window(
-    viewport_width, viewport_height, "Rigid Body Sim with Impulse Collision Model", None, None)
+    viewport_width, viewport_height, "Rigid Body Sim with Initial Angular Velocity", None, None)
 if not window:
     glfw.terminate()
     raise RuntimeError("Could not create GLFW window")
@@ -32,6 +32,11 @@ xml_path = os.path.join(os.path.dirname(__file__),
                         "..", "models", "sphere.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
+
+# ✅ Set initial angular velocity for the ball (spin around z-axis)
+ball_joint_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "ball_joint")
+angular_velocity = np.array([0.0, 20.0, 0.0])  # Spin around z-axis at 20 rad/s
+data.qvel[3:6] = angular_velocity
 
 # --- Initialize logger
 logger = DataLogger()
