@@ -5,17 +5,26 @@ import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
 
+# --- Global camera and mouse state variables --- #
+last_x, last_y = 0, 0
+left_pressed = False
+right_pressed = False
+viewport_width, viewport_height = 1200, 900
+
 # --- Initialize GLFW --- #
 if not glfw.init():
     raise RuntimeError("Could not initialize GLFW")
 
 window = glfw.create_window(
-    1200, 900, "Custom Rigid Body Simulation with Contact Handling", None, None)
+    viewport_width, viewport_height, "Custom Rigid Body Simulation with Contact Handling", None, None)
 if not window:
     glfw.terminate()
     raise RuntimeError("Could not create GLFW window")
 glfw.make_context_current(window)
 glfw.swap_interval(1)
+
+# Initialize last_x, last_y with current cursor position
+last_x, last_y = glfw.get_cursor_pos(window)
 
 # --- Load MuJoCo model --- #
 xml_path = os.path.join(os.path.dirname(__file__),
@@ -36,14 +45,12 @@ def compute_inertia_tensor_world(inertia_diag, q):
 
 def custom_step_with_contact(model, data, dt=0.01):
     """Custom integration and collision resolution with MuJoCo contact detection."""
-    # 1. Forward to update contact information
-    mj.mj_forward(model, data)
+    mj.mj_forward(model, data)  # Update contact information
 
     ball_body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "ball")
     mass = model.body_mass[ball_body_id]
     inertia_diag = model.body_inertia[ball_body_id]
 
-    # Current forces
     force = data.xfrc_applied[ball_body_id, :3] + mass * model.opt.gravity
     torque = data.xfrc_applied[ball_body_id, 3:]
 
@@ -52,22 +59,19 @@ def custom_step_with_contact(model, data, dt=0.01):
     pos = data.qpos[:3]
     quat = data.qpos[3:7]
 
-    # 2. Advance velocities
     vel_new = vel + (force / mass) * dt
     inertia_world = compute_inertia_tensor_world(inertia_diag, quat)
     omega_new = omega + np.linalg.inv(inertia_world) @ (torque * dt)
 
-    # 3. Use MuJoCo's contact information for shock propagation-like correction
     if data.ncon > 0:
         for i in range(data.ncon):
             contact = data.contact[i]
             if not np.isnan(contact.dist):
                 normal = contact.frame[:3]
                 penetration_depth = -contact.dist if contact.dist < 0 else 0
-                impulse = penetration_depth * 10.0  # Scaled corrective impulse
+                impulse = penetration_depth * 10.0
                 vel_new += normal * impulse / mass
 
-    # 4. Advance positions
     pos_new = pos + vel_new * dt
     omega_quat = np.concatenate([[0], omega_new])
     res = np.zeros(4)
@@ -76,7 +80,6 @@ def custom_step_with_contact(model, data, dt=0.01):
     quat_new = quat + delta_q
     quat_new /= np.linalg.norm(quat_new)
 
-    # Update simulation state
     data.qpos[:3] = pos_new
     data.qpos[3:7] = quat_new
     data.qvel[:3] = vel_new
