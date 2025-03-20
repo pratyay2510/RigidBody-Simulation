@@ -6,6 +6,7 @@ from mujoco.glfw import glfw
 from data_logger import DataLogger
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import imageio  # ✅ For video recording
 
 # --- Global state variables ---
 last_x, last_y = 0, 0
@@ -73,7 +74,8 @@ def step_with_custom_collisions(model, data, dt=0.01):
         data.qvel[vel_idx:vel_idx + 3] += model.opt.gravity * dt
 
     # Ball-ground collisions
-    for pos_idx, vel_idx, ang_idx, mass, I_inv in [(0, 0, 3, mass1, I_inv_ball1), (7, 6, 9, mass2, I_inv_ball2)]:
+    for pos_idx, vel_idx, ang_idx, mass, I_inv in [
+            (0, 0, 3, mass1, I_inv_ball1), (7, 6, 9, mass2, I_inv_ball2)]:
         pos = data.qpos[pos_idx:pos_idx + 3]
         linvel = data.qvel[vel_idx:vel_idx + 3]
         angvel = data.qvel[ang_idx:ang_idx + 3]
@@ -114,7 +116,7 @@ def step_with_custom_collisions(model, data, dt=0.01):
         data.qpos[pos_idx:pos_idx + 3] += data.qvel[vel_idx:vel_idx + 3] * dt
 
 
-# --- Viewer and rendering setup ---
+# --- Viewer and video recording setup ---
 if not glfw.init():
     raise RuntimeError("GLFW init failed.")
 window = glfw.create_window(viewport_width, viewport_height,
@@ -129,6 +131,11 @@ mj.mjv_defaultOption(opt)
 scene = mj.MjvScene(model, maxgeom=10000)
 context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
 cam.distance, cam.lookat[:] = 5.0, [0.0, 0.0, 1.0]
+
+# ✅ Setup video recording
+video_output_path = "src/recordings/two_ball_collision.mp4"
+os.makedirs(os.path.dirname(video_output_path), exist_ok=True)
+video_writer = imageio.get_writer(video_output_path, fps=30, codec='libx264')
 
 # --- Callback Handlers ---
 
@@ -187,26 +194,33 @@ while not glfw.window_should_close(window):
         step_with_custom_collisions(model, data, dt=model.opt.timestep)
         simulation_time += model.opt.timestep
 
-        # Log trajectories
         pos1, pos2 = data.qpos[0:3], data.qpos[7:10]
         logger_ball1.record(simulation_time, pos1[2], pos1[0], pos1[1])
         logger_ball2.record(simulation_time, pos2[2], pos2[0], pos2[1])
 
-    # ✅ Always render, even if paused:
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
     mj.mjv_updateScene(model, data, opt, None, cam,
                        mj.mjtCatBit.mjCAT_ALL.value, scene)
     mj.mjr_render(viewport, scene, context)
 
+    # ✅ Capture frame for video
+    rgb_buffer = np.zeros((viewport.height, viewport.width, 3), dtype=np.uint8)
+    depth_buffer = np.zeros(
+        (viewport.height, viewport.width), dtype=np.float32)
+    mj.mjr_readPixels(rgb_buffer, depth_buffer, viewport, context)
+    frame = np.flipud(rgb_buffer)  # Flip vertically
+    video_writer.append_data(frame)
+
     glfw.swap_buffers(window)
     glfw.poll_events()
 
-
-# --- Save results ---
+# --- Save results and close video ---
+video_writer.close()
 logger_ball1.save_plot("src/plots/ball1_height_vs_time.png")
 logger_ball1.save_trajectory_plot_3d("src/plots/ball1_trajectory_3d.png")
 logger_ball2.save_plot("src/plots/ball2_height_vs_time.png")
 logger_ball2.save_trajectory_plot_3d("src/plots/ball2_trajectory_3d.png")
 
 glfw.terminate()
+print(f"Video saved at: {video_output_path}")

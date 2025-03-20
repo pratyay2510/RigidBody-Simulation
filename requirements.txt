@@ -3,3 +3,5 @@ numpy
 glfw
 scipy
 matplotlib
+imageio
+imageio-ffmpeg
