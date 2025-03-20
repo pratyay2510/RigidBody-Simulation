@@ -37,17 +37,18 @@ data = mj.MjData(model)
 
 # ✅ Set unique velocities & spins for each sphere
 initial_conditions = {
-    "ball1": (np.array([2.0, -1.0, 0.0]), np.array([-5.0, 3.0, 0.0])),
-    "ball2": (np.array([-2.0, 1.0, 0.0]), np.array([4.0, -2.0, 0.0])),
-    "ball3": (np.array([1.0, 2.0, 0.0]), np.array([3.0, 1.0, 0.0])),
-    "ball4": (np.array([-1.0, -2.0, 0.0]), np.array([-3.0, -1.0, 0.0]))
+    "ball1": (np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
+    "ball2": (np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
+    "ball3": (np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
+    "ball4": (np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0]))
 }
 
 for ball in ball_names:
     joint_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, f"{ball}_joint")
-    start_idx = joint_id * 6
+    # ✅ This maps the correct starting index
+    start_idx = model.jnt_dofadr[joint_id]
     data.qvel[start_idx:start_idx +
-              3] = initial_conditions[ball][0]     # Linear velocity
+              3] = initial_conditions[ball][0]  # Linear velocity
     data.qvel[start_idx + 3:start_idx +
               6] = initial_conditions[ball][1]  # Angular velocity
 

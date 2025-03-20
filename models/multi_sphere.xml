@@ -4,7 +4,7 @@
 
   <default>
     <joint armature="0" damping="0.1" limited="false"/>
-    <geom friction="0.2" solimp="0.99 0.99 0.8" solref="0.01 0.5"/>
+    <geom friction="0.0" solimp="0.99 0.99 0.8" solref="0.01 0.5"/>
   </default>
 
   <option gravity="0 0 -9.8" timestep="0.01"/>
