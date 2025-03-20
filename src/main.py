@@ -4,106 +4,103 @@ import numpy as np
 import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
-from data_logger import DataLogger  # ✅ Import the logger
+from data_logger import DataLogger
+from simulation.collision import compute_collision_impulse
+from simulation.physics import apply_impulse
 
-# --- Global camera and mouse state variables --- #
+# --- Global state variables
 last_x, last_y = 0, 0
 left_pressed = False
 right_pressed = False
 viewport_width, viewport_height = 1200, 900
 
-# --- Initialize GLFW --- #
+# --- Initialize GLFW
 if not glfw.init():
     raise RuntimeError("Could not initialize GLFW")
 
 window = glfw.create_window(
-    viewport_width, viewport_height, "Custom Rigid Body Simulation with Contact Handling", None, None)
+    viewport_width, viewport_height, "Rigid Body Sim with Impulse Collision Model", None, None)
 if not window:
     glfw.terminate()
     raise RuntimeError("Could not create GLFW window")
 glfw.make_context_current(window)
 glfw.swap_interval(1)
-
-# Initialize last_x, last_y with current cursor position
 last_x, last_y = glfw.get_cursor_pos(window)
 
-# --- Load MuJoCo model --- #
+# --- Load model and initialize
 xml_path = os.path.join(os.path.dirname(__file__),
                         "..", "models", "sphere.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
 
-# --- Initialize logger --- #
+# --- Initialize logger
 logger = DataLogger()
 simulation_time = 0.0
 
-# --- Custom Dynamics Implementation (Based on Paper) --- #
+# --- Helper function
 
 
 def compute_inertia_tensor_world(inertia_diag, q):
-    """Compute world-frame inertia tensor given quaternion orientation."""
-    rotation_matrix = R.from_quat(q[[1, 2, 3, 0]]).as_matrix()
-    I_object = np.diag(inertia_diag)
-    I_world = rotation_matrix @ I_object @ rotation_matrix.T
-    return I_world
+    rot_matrix = R.from_quat(q[[1, 2, 3, 0]]).as_matrix()
+    return rot_matrix @ np.diag(inertia_diag) @ rot_matrix.T
+
+# --- Custom simulation step with impulse-based collision handling
 
 
-def custom_step_with_contact(model, data, dt=0.01):
-    """Custom integration and collision resolution with MuJoCo contact detection."""
-    mj.mj_forward(model, data)  # Update contact information
-
+def custom_step_with_impulse_collision(model, data, dt=0.01, restitution=1.0):
+    mj.mj_forward(model, data)
     ball_body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "ball")
+
     mass = model.body_mass[ball_body_id]
     inertia_diag = model.body_inertia[ball_body_id]
-
-    force = data.xfrc_applied[ball_body_id, :3] + mass * model.opt.gravity
-    torque = data.xfrc_applied[ball_body_id, 3:]
+    inertia_world = compute_inertia_tensor_world(inertia_diag, data.qpos[3:7])
 
     vel = data.qvel[:3]
     omega = data.qvel[3:6]
-    pos = data.qpos[:3]
-    quat = data.qpos[3:7]
+    force = data.xfrc_applied[ball_body_id, :3] + mass * model.opt.gravity
+    torque = data.xfrc_applied[ball_body_id, 3:]
 
-    vel_new = vel + (force / mass) * dt
-    inertia_world = compute_inertia_tensor_world(inertia_diag, quat)
-    omega_new = omega + np.linalg.inv(inertia_world) @ (torque * dt)
+    # Integrate velocities
+    vel += (force / mass) * dt
+    omega += np.linalg.inv(inertia_world) @ (torque * dt)
 
-    if data.ncon > 0:
-        for i in range(data.ncon):
-            contact = data.contact[i]
-            if not np.isnan(contact.dist):
-                normal = contact.frame[:3]
-                penetration_depth = -contact.dist if contact.dist < 0 else 0
-                impulse = penetration_depth * 10.0
-                vel_new += normal * impulse / mass
+    # Collision handling via impulse
+    for i in range(data.ncon):
+        contact = data.contact[i]
+        if not np.isnan(contact.dist) and contact.dist < 0:
+            contact_point = contact.pos - data.qpos[:3]
+            normal = contact.frame[:3]
+            jn = compute_collision_impulse(
+                mass, inertia_world, vel, omega, contact_point, normal, restitution)
+            vel, omega = apply_impulse(
+                vel, omega, mass, inertia_world, contact_point, normal, jn)
 
-    pos_new = pos + vel_new * dt
-    omega_quat = np.concatenate([[0], omega_new])
+    # Integrate positions
+    pos_new = data.qpos[:3] + vel * dt
+    omega_quat = np.concatenate([[0], omega])
     res = np.zeros(4)
-    mj.mju_mulQuat(res, omega_quat, quat)
-    delta_q = 0.5 * res * dt
-    quat_new = quat + delta_q
+    mj.mju_mulQuat(res, omega_quat, data.qpos[3:7])
+    quat_new = data.qpos[3:7] + 0.5 * res * dt
     quat_new /= np.linalg.norm(quat_new)
 
+    # Update state
     data.qpos[:3] = pos_new
     data.qpos[3:7] = quat_new
-    data.qvel[:3] = vel_new
-    data.qvel[3:6] = omega_new
+    data.qvel[:3] = vel
+    data.qvel[3:6] = omega
 
 
-# --- Visualization Setup --- #
+# --- Visualization setup (unchanged) --- #
 cam = mj.MjvCamera()
 opt = mj.MjvOption()
 mj.mjv_defaultCamera(cam)
 mj.mjv_defaultOption(opt)
 scene = mj.MjvScene(model, maxgeom=10000)
 context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
-cam.azimuth = 90
-cam.elevation = -30
-cam.distance = 6
+cam.azimuth, cam.elevation, cam.distance = 90, -30, 6
 cam.lookat = np.array([0.0, 0.0, 0.5])
 
-# --- Mouse & Keyboard Handlers --- #
+# --- Mouse and keyboard callbacks (unchanged) --- #
 
 
 def keyboard(window, key, scancode, act, mods):
@@ -123,9 +120,8 @@ def mouse_button(window, button, act, mods):
 
 
 def mouse_move(window, xpos, ypos):
-    global last_x, last_y, viewport_width, viewport_height
-    dx = xpos - last_x
-    dy = ypos - last_y
+    global last_x, last_y
+    dx, dy = xpos - last_x, ypos - last_y
     last_x, last_y = xpos, ypos
     if left_pressed:
         mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ROTATE_V,
@@ -147,14 +143,9 @@ glfw.set_scroll_callback(window, scroll)
 
 # --- Main simulation loop --- #
 while not glfw.window_should_close(window):
-    start_time = time.time()
-
-    custom_step_with_contact(model, data, dt=model.opt.timestep)
-
-    # ✅ Record z-position each frame
-    ball_z = data.qpos[2]
+    custom_step_with_impulse_collision(model, data, dt=model.opt.timestep)
     simulation_time += model.opt.timestep
-    logger.record(simulation_time, ball_z)
+    logger.record(simulation_time, data.qpos[2])
 
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
@@ -162,20 +153,8 @@ while not glfw.window_should_close(window):
                        mj.mjtCatBit.mjCAT_ALL.value, scene)
     mj.mjr_render(viewport, scene, context)
 
-    if data.ncon > 0:
-        for i in range(data.ncon):
-            contact = data.contact[i]
-            print(
-                f"Contact {i}: dist={contact.dist}, pos={contact.pos}, frame={contact.frame[:3]}")
-
     glfw.swap_buffers(window)
     glfw.poll_events()
 
-    elapsed = time.time() - start_time
-    if model.opt.timestep - elapsed > 0:
-        time.sleep(model.opt.timestep - elapsed)
-
-# ✅ Save the height vs time plot after simulation ends
 logger.save_plot("src/plots/height_vs_time.png")
-
 glfw.terminate()

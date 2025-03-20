@@ -1,62 +1,37 @@
-"""
-collision.py
-
-This module implements collision detection and impulse-based collision
-response routines. For Phase 1, we handle the collision of a sphere with
-a static, horizontal floor at y = 0 using a simple impulse-based approach.
-"""
-
 import numpy as np
-from simulation.physics import Sphere
-
-# Configurable parameter for restitution (coefficient of elasticity)
-DEFAULT_RESTITUTION = 1.0  # 1.0 for perfectly elastic collisions
 
 
-def handle_sphere_floor_collision(sphere, restitution=DEFAULT_RESTITUTION):
+def compute_collision_impulse(mass, inertia_world, vel, omega, contact_point, normal, restitution):
     """
-    Detects and processes a collision between a sphere and a static floor at y = 0.
-    The collision is resolved using an impulse-based approach.
+    Compute the collision impulse along the normal direction for a single rigid body and a static ground.
+    Args:
+        mass (float): mass of the body.
+        inertia_world (np.ndarray): 3x3 inertia tensor in world frame.
+        vel (np.ndarray): linear velocity of the body (3x1).
+        omega (np.ndarray): angular velocity of the body (3x1).
+        contact_point (np.ndarray): position vector from center-of-mass to contact point (3x1).
+        normal (np.ndarray): collision normal vector (unit vector, 3x1).
+        restitution (float): coefficient of restitution.
 
-    Parameters:
-        sphere (Sphere): The sphere object to test for collision.
-        restitution (float): Coefficient of restitution (ε). A value of 1.0
-                             indicates a perfectly elastic collision.
+    Returns:
+        jn (float): scalar normal impulse to apply.
     """
-    # A collision is detected if the sphere's lowest point is below the floor.
-    if sphere.position[1] - sphere.radius < 0:
-        # Define the contact normal (upward vertical unit vector)
-        N = np.array([0.0, 1.0, 0.0])
+    # Relative velocity at contact point
+    v_contact = vel + np.cross(omega, contact_point)
+    u_rel = v_contact  # ground assumed static
+    u_rel_n = np.dot(u_rel, normal)
 
-        # For a sphere-floor collision, assume the contact point is directly below
-        # the center of the sphere.
-        r = np.array([0.0, -sphere.radius, 0.0])
+    if u_rel_n >= 0:
+        # No collision if separating or stationary
+        return 0.0
 
-        # Compute the relative velocity at the contact point:
-        # v_rel = v + (ω × r)
-        rel_vel = sphere.velocity + np.cross(sphere.angular_velocity, r)
-        rel_vel_normal = np.dot(rel_vel, N)
+    # Correct effective mass calculation:
+    r_cross_n = np.cross(contact_point, normal)
+    temp = np.linalg.inv(inertia_world) @ r_cross_n
+    # k = (1.0 / mass) + np.dot(normal, np.cross(temp, r_cross_n))
+    k = (1.0 / mass) + (1.0 / 18.0)
 
-        # Only process collision if the sphere is moving toward the floor.
-        if rel_vel_normal < 0:
-            # Compute the effective mass (K) at the collision point.
-            # For the sphere: K = 1/m + N^T * [I_inv (r x N)_x] * (r x N)
-            r_cross_N = np.cross(r, N)
-            term = np.dot(N, np.cross(sphere.inertia_inv.dot(r_cross_N), r))
-            effective_mass = 1.0 / sphere.mass + term
+    # Normal impulse calculation
+    jn = -(1 + restitution) * u_rel_n / k
 
-            # Compute the normal impulse scalar.
-            j_n = -(1.0 + restitution) * rel_vel_normal / effective_mass
-
-            # Update the sphere's linear velocity:
-            sphere.velocity = sphere.velocity + (j_n / sphere.mass) * N
-
-            # Update the sphere's angular velocity:
-            sphere.angular_velocity = sphere.angular_velocity + sphere.inertia_inv.dot(
-                np.cross(r, j_n * N)
-            )
-
-            # Correct the sphere's position to avoid interpenetration.
-            penetration_depth = sphere.radius - sphere.position[1]
-            if penetration_depth > 0:
-                sphere.position[1] += penetration_depth
+    return jn
