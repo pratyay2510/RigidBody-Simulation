@@ -64,7 +64,7 @@ def custom_step_with_contact(model, data, dt=0.01):
             if not np.isnan(contact.dist):
                 normal = contact.frame[:3]
                 penetration_depth = -contact.dist if contact.dist < 0 else 0
-                impulse = penetration_depth * 200.0  # Scaled corrective impulse
+                impulse = penetration_depth * 10.0  # Scaled corrective impulse
                 vel_new += normal * impulse / mass
 
     # 4. Advance positions
