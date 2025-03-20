@@ -5,14 +5,15 @@ import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
 from data_logger import DataLogger
-from simulation.collision import compute_collision_impulse
-from simulation.physics import apply_impulse
+from simulation.collision import compute_collision_impulse, compute_collision_impulse_friction
+from simulation.physics import apply_impulse, apply_impulse_friction
 
 # --- Global state variables
 last_x, last_y = 0, 0
 left_pressed = False
 right_pressed = False
 viewport_width, viewport_height = 1200, 900
+friction_coefficient = 0.5
 
 # --- Initialize GLFW
 if not glfw.init():
@@ -35,7 +36,8 @@ data = mj.MjData(model)
 
 # ✅ Set initial angular velocity for the ball (spin around z-axis)
 ball_joint_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "ball_joint")
-angular_velocity = np.array([0.0, 20.0, 0.0])  # Spin around z-axis at 20 rad/s
+# Spin around z-axis at 20 rad/s
+angular_velocity = np.array([-5.0, -5.0, 0.0])
 data.qvel[3:6] = angular_velocity
 
 # --- Initialize logger
@@ -79,6 +81,58 @@ def custom_step_with_impulse_collision(model, data, dt=0.01, restitution=1.0):
                 mass, inertia_world, vel, omega, contact_point, normal, restitution)
             vel, omega = apply_impulse(
                 vel, omega, mass, inertia_world, contact_point, normal, jn)
+
+    # Integrate positions
+    pos_new = data.qpos[:3] + vel * dt
+    omega_quat = np.concatenate([[0], omega])
+    res = np.zeros(4)
+    mj.mju_mulQuat(res, omega_quat, data.qpos[3:7])
+    quat_new = data.qpos[3:7] + 0.5 * res * dt
+    quat_new /= np.linalg.norm(quat_new)
+
+    # Update state
+    data.qpos[:3] = pos_new
+    data.qpos[3:7] = quat_new
+    data.qvel[:3] = vel
+    data.qvel[3:6] = omega
+
+# Collision and physics updates
+
+
+def custom_step_with_impulse_collision_friction(model, data, dt=0.01, restitution=1.0):
+    """
+    Custom simulation step with impulse-based collision and friction handling.
+    """
+    mj.mj_forward(model, data)
+    ball_body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "ball")
+
+    mass = model.body_mass[ball_body_id]
+    inertia_diag = model.body_inertia[ball_body_id]
+    inertia_world = compute_inertia_tensor_world(inertia_diag, data.qpos[3:7])
+
+    vel = data.qvel[:3]
+    omega = data.qvel[3:6]
+    force = data.xfrc_applied[ball_body_id, :3] + mass * model.opt.gravity
+    torque = data.xfrc_applied[ball_body_id, 3:]
+
+    # Integrate velocities
+    vel += (force / mass) * dt
+    omega += np.linalg.inv(inertia_world) @ (torque * dt)
+
+    # Collision and friction handling
+    for i in range(data.ncon):
+        contact = data.contact[i]
+        if not np.isnan(contact.dist) and contact.dist < 0:
+            contact_point = contact.pos - data.qpos[:3]
+            normal = contact.frame[:3]
+
+            # Compute both normal and friction impulses
+            jn, jt = compute_collision_impulse_friction(
+                mass, inertia_world, vel, omega, contact_point, normal, restitution, friction_coefficient
+            )
+            vel, omega = apply_impulse_friction(
+                vel, omega, mass, inertia_world, contact_point, normal, jn, jt
+            )
 
     # Integrate positions
     pos_new = data.qpos[:3] + vel * dt
@@ -148,7 +202,9 @@ glfw.set_scroll_callback(window, scroll)
 
 # --- Main simulation loop --- #
 while not glfw.window_should_close(window):
-    custom_step_with_impulse_collision(model, data, dt=model.opt.timestep)
+    # custom_step_with_impulse_collision(model, data, dt=model.opt.timestep)
+    custom_step_with_impulse_collision_friction(
+        model, data, dt=model.opt.timestep)
     simulation_time += model.opt.timestep
     logger.record(simulation_time, data.qpos[2])
 
