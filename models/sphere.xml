@@ -27,7 +27,7 @@
     <geom condim="3" material="MatPlane" name="ground" pos="0 0 0" size="5 5 0.1" type="plane" solref="0.001 0.5" /> 
 
     <!-- Ball setup -->
-    <body name="ball" pos="0 -3 1">
+    <body name="ball" pos="-4 0 1">
       <joint name="ball_joint" type="free" damping="0.001"/>
       <geom name="ball_geom" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 0.5"/>
     </body>
