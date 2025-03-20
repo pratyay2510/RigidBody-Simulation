@@ -1,6 +1,6 @@
 <mujoco model="sphere_model">
   <!-- Set simulation options with explicit gravity in the -y direction -->
-  <option timestep="0.01" gravity="0 -9.81 0" />
+  <option timestep="0.01" gravity="0 0 -9.81" />
 
   <!-- World body definition -->
   <worldbody>
@@ -8,7 +8,7 @@
     <geom name="floor" type="plane" pos="0 0 0" size="5 5 0.1" rgba="0.7 0.7 0.7 1"/>
     
     <!-- Sphere body initially placed above the floor -->
-    <body name="ball" pos="0 1 0">
+    <body name="ball" pos="0 0 10">
       <!-- Free joint with a name for reference -->
       <joint name="ball_free_joint" type="free"/>
       

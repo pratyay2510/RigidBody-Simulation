@@ -74,24 +74,42 @@ def keyboard(window, key, scancode, act, mods):
             mj.mj_forward(model, data)
             print("Simulation reset.")
         elif key == glfw.KEY_P:
-            # Get joint ID and addresses
             joint_id = mj.mj_name2id(
                 model, mj.mjtObj.mjOBJ_JOINT, "ball_free_joint")
             pos_addr = model.jnt_qposadr[joint_id]
             vel_addr = model.jnt_dofadr[joint_id]
 
-            # Position: use camera lookat, but set y = floor_height + radius + offset
-            sphere_height = 0.5 + 0.05  # radius + small margin
-            target_pos = cam.lookat.copy()
-            target_pos[1] = sphere_height
+            # Dynamically retrieve sphere radius from model
+            ball_geom_id = mj.mj_name2id(
+                model, mj.mjtObj.mjOBJ_GEOM, "ball_geom")
+            sphere_radius = model.geom_size[ball_geom_id][0]
 
-            # Update qpos and qvel
+            # Set clearance and bounce height
+            clearance = 0.05
+            bounce_height = 2.0  # You can adjust this
+
+            placement_height = sphere_radius + clearance + bounce_height
+
+            # Safety check (should always be true)
+            if placement_height < (sphere_radius + clearance):
+                placement_height = sphere_radius + clearance
+                print(
+                    f"Placement height adjusted to safe height: {placement_height}")
+
+            target_pos = cam.lookat.copy()
+            target_pos[1] = placement_height
+
+            # Reset simulation state before placement
+            mj.mj_resetData(model, data)
+
+            # Set position and zero velocity
             data.qpos[pos_addr:pos_addr+3] = target_pos
-            data.qpos[pos_addr+3:pos_addr+7] = [1,
-                                                0, 0, 0]  # Identity quaternion
+            data.qpos[pos_addr+3:pos_addr+7] = [1, 0, 0, 0]
             data.qvel[vel_addr:vel_addr+6] = 0.0
+
             mj.mj_forward(model, data)
-            print(f"Sphere repositioned to: {target_pos}")
+            print(
+                f"Sphere repositioned to: {target_pos} (radius={sphere_radius}, clearance={clearance}, drop_height={bounce_height})")
 
         elif key == glfw.KEY_R:
             restitution = min(restitution + 0.1, 1.0)
