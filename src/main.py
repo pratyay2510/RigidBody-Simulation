@@ -37,7 +37,7 @@ data = mj.MjData(model)
 # ✅ Set initial angular velocity for the ball (spin around z-axis)
 ball_joint_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "ball_joint")
 # Spin around z-axis at 20 rad/s
-angular_velocity = np.array([-5.0, -5.0, 0.0])
+angular_velocity = np.array([-9.0, -5.0, 3.0])
 data.qvel[3:6] = angular_velocity
 
 # --- Initialize logger
@@ -102,6 +102,7 @@ def custom_step_with_impulse_collision(model, data, dt=0.01, restitution=1.0):
 def custom_step_with_impulse_collision_friction(model, data, dt=0.01, restitution=1.0):
     """
     Custom simulation step with impulse-based collision and friction handling.
+    Returns updated position for 3D trajectory logging.
     """
     mj.mj_forward(model, data)
     ball_body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "ball")
@@ -142,11 +143,14 @@ def custom_step_with_impulse_collision_friction(model, data, dt=0.01, restitutio
     quat_new = data.qpos[3:7] + 0.5 * res * dt
     quat_new /= np.linalg.norm(quat_new)
 
-    # Update state
+    # Update simulation state
     data.qpos[:3] = pos_new
     data.qpos[3:7] = quat_new
     data.qvel[:3] = vel
     data.qvel[3:6] = omega
+
+    # Return the new position for logging
+    return pos_new
 
 
 # --- Visualization setup (unchanged) --- #
@@ -202,11 +206,11 @@ glfw.set_scroll_callback(window, scroll)
 
 # --- Main simulation loop --- #
 while not glfw.window_should_close(window):
-    # custom_step_with_impulse_collision(model, data, dt=model.opt.timestep)
-    custom_step_with_impulse_collision_friction(
+    pos_new = custom_step_with_impulse_collision_friction(
         model, data, dt=model.opt.timestep)
     simulation_time += model.opt.timestep
-    logger.record(simulation_time, data.qpos[2])
+    x, y, z = pos_new
+    logger.record(simulation_time, z, x, y)
 
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
@@ -217,5 +221,8 @@ while not glfw.window_should_close(window):
     glfw.swap_buffers(window)
     glfw.poll_events()
 
+# ✅ Save both plots
 logger.save_plot("src/plots/height_vs_time.png")
+logger.save_trajectory_plot_3d("src/plots/3d_trajectory.png")
+
 glfw.terminate()
