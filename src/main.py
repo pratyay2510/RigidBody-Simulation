@@ -1,32 +1,16 @@
-"""
-main.py
-
-Entry point for the rigid body simulation Phase 1 using MuJoCo for rendering.
-This module initializes a MuJoCo model (defined in models/sphere.xml)
-that contains a free body representing a sphere bouncing on a static floor.
-We use MuJoCo's built-in physics engine (mj_step) for simulation (including gravity and collisions).
-It also supports real-time adjustments of gravity, restitution, and (optionally) friction.
-"""
-
 import os
 import time
 import numpy as np
-
 import mujoco as mj
 from mujoco.glfw import glfw
-
-# Global variables
-last_x, last_y = 0, 0
-left_pressed = False
-right_pressed = False
-viewport_width, viewport_height = 1200, 900
+from scipy.spatial.transform import Rotation as R
 
 # --- Initialize GLFW --- #
 if not glfw.init():
     raise RuntimeError("Could not initialize GLFW")
 
 window = glfw.create_window(
-    viewport_width, viewport_height, "MuJoCo Ball Bounce Simulation", None, None)
+    1200, 900, "Custom Rigid Body Simulation with Contact Handling", None, None)
 if not window:
     glfw.terminate()
     raise RuntimeError("Could not create GLFW window")
@@ -39,89 +23,86 @@ xml_path = os.path.join(os.path.dirname(__file__),
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
 
-# Adjustable parameters
-restitution = 1.0
-gravity_modes = [
-    np.array([0, -9.81, 0]),
-    np.array([0, 0, 0]),
-    np.array([0, -3.0, 0])
-]
-gravity_index = 0
-model.opt.gravity[:] = gravity_modes[gravity_index]
+# --- Custom Dynamics Implementation (Based on Paper) --- #
 
-# --- Create visualization objects --- #
+
+def compute_inertia_tensor_world(inertia_diag, q):
+    """Compute world-frame inertia tensor given quaternion orientation."""
+    rotation_matrix = R.from_quat(q[[1, 2, 3, 0]]).as_matrix()
+    I_object = np.diag(inertia_diag)
+    I_world = rotation_matrix @ I_object @ rotation_matrix.T
+    return I_world
+
+
+def custom_step_with_contact(model, data, dt=0.01):
+    """Custom integration and collision resolution with MuJoCo contact detection."""
+    # 1. Forward to update contact information
+    mj.mj_forward(model, data)
+
+    ball_body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "ball")
+    mass = model.body_mass[ball_body_id]
+    inertia_diag = model.body_inertia[ball_body_id]
+
+    # Current forces
+    force = data.xfrc_applied[ball_body_id, :3] + mass * model.opt.gravity
+    torque = data.xfrc_applied[ball_body_id, 3:]
+
+    vel = data.qvel[:3]
+    omega = data.qvel[3:6]
+    pos = data.qpos[:3]
+    quat = data.qpos[3:7]
+
+    # 2. Advance velocities
+    vel_new = vel + (force / mass) * dt
+    inertia_world = compute_inertia_tensor_world(inertia_diag, quat)
+    omega_new = omega + np.linalg.inv(inertia_world) @ (torque * dt)
+
+    # 3. Use MuJoCo's contact information for shock propagation-like correction
+    if data.ncon > 0:
+        for i in range(data.ncon):
+            contact = data.contact[i]
+            if not np.isnan(contact.dist):
+                normal = contact.frame[:3]
+                penetration_depth = -contact.dist if contact.dist < 0 else 0
+                impulse = penetration_depth * 200.0  # Scaled corrective impulse
+                vel_new += normal * impulse / mass
+
+    # 4. Advance positions
+    pos_new = pos + vel_new * dt
+    omega_quat = np.concatenate([[0], omega_new])
+    res = np.zeros(4)
+    mj.mju_mulQuat(res, omega_quat, quat)
+    delta_q = 0.5 * res * dt
+    quat_new = quat + delta_q
+    quat_new /= np.linalg.norm(quat_new)
+
+    # Update simulation state
+    data.qpos[:3] = pos_new
+    data.qpos[3:7] = quat_new
+    data.qvel[:3] = vel_new
+    data.qvel[3:6] = omega_new
+
+
+# --- Visualization Setup --- #
 cam = mj.MjvCamera()
 opt = mj.MjvOption()
 mj.mjv_defaultCamera(cam)
 mj.mjv_defaultOption(opt)
 scene = mj.MjvScene(model, maxgeom=10000)
 context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
-
-# --- Set Initial Camera Parameters --- #
 cam.azimuth = 90
 cam.elevation = -30
 cam.distance = 6
-cam.lookat = np.array([0.0, 0.5, 0.0])
+cam.lookat = np.array([0.0, 0.0, 0.5])
 
-# --- Callback handlers --- #
+# --- Mouse & Keyboard Handlers --- #
 
 
 def keyboard(window, key, scancode, act, mods):
-    global restitution, gravity_index
-    if act == glfw.PRESS:
-        if key == glfw.KEY_BACKSPACE:
-            mj.mj_resetData(model, data)
-            mj.mj_forward(model, data)
-            print("Simulation reset.")
-        elif key == glfw.KEY_P:
-            joint_id = mj.mj_name2id(
-                model, mj.mjtObj.mjOBJ_JOINT, "ball_free_joint")
-            pos_addr = model.jnt_qposadr[joint_id]
-            vel_addr = model.jnt_dofadr[joint_id]
-
-            # Dynamically retrieve sphere radius from model
-            ball_geom_id = mj.mj_name2id(
-                model, mj.mjtObj.mjOBJ_GEOM, "ball_geom")
-            sphere_radius = model.geom_size[ball_geom_id][0]
-
-            # Set clearance and bounce height
-            clearance = 0.05
-            bounce_height = 2.0  # You can adjust this
-
-            placement_height = sphere_radius + clearance + bounce_height
-
-            # Safety check (should always be true)
-            if placement_height < (sphere_radius + clearance):
-                placement_height = sphere_radius + clearance
-                print(
-                    f"Placement height adjusted to safe height: {placement_height}")
-
-            target_pos = cam.lookat.copy()
-            target_pos[1] = placement_height
-
-            # Reset simulation state before placement
-            mj.mj_resetData(model, data)
-
-            # Set position and zero velocity
-            data.qpos[pos_addr:pos_addr+3] = target_pos
-            data.qpos[pos_addr+3:pos_addr+7] = [1, 0, 0, 0]
-            data.qvel[vel_addr:vel_addr+6] = 0.0
-
-            mj.mj_forward(model, data)
-            print(
-                f"Sphere repositioned to: {target_pos} (radius={sphere_radius}, clearance={clearance}, drop_height={bounce_height})")
-
-        elif key == glfw.KEY_R:
-            restitution = min(restitution + 0.1, 1.0)
-            ball_geom_id = mj.mj_name2id(
-                model, mj.mjtObj.mjOBJ_GEOM, "ball_geom")
-            model.geom_solimp[ball_geom_id][2] = restitution
-            print(f"Restitution (approx.) increased to {restitution:.2f}")
-
-        elif key == glfw.KEY_G:
-            gravity_index = (gravity_index + 1) % len(gravity_modes)
-            model.opt.gravity[:] = gravity_modes[gravity_index]
-            print(f"Gravity switched to: {model.opt.gravity}")
+    if act == glfw.PRESS and key == glfw.KEY_BACKSPACE:
+        mj.mj_resetData(model, data)
+        mj.mj_forward(model, data)
+        print("Simulation reset.")
 
 
 def mouse_button(window, button, act, mods):
@@ -151,7 +132,6 @@ def scroll(window, xoffset, yoffset):
                       0, -0.05 * yoffset, scene, cam)
 
 
-# --- Install callbacks --- #
 glfw.set_key_callback(window, keyboard)
 glfw.set_mouse_button_callback(window, mouse_button)
 glfw.set_cursor_pos_callback(window, mouse_move)
@@ -159,9 +139,9 @@ glfw.set_scroll_callback(window, scroll)
 
 # --- Main simulation loop --- #
 while not glfw.window_should_close(window):
-    time_start = time.time()
+    start_time = time.time()
 
-    mj.mj_step(model, data)
+    custom_step_with_contact(model, data, dt=model.opt.timestep)
 
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
@@ -169,10 +149,16 @@ while not glfw.window_should_close(window):
                        mj.mjtCatBit.mjCAT_ALL.value, scene)
     mj.mjr_render(viewport, scene, context)
 
+    if data.ncon > 0:
+        for i in range(data.ncon):
+            contact = data.contact[i]
+            print(
+                f"Contact {i}: dist={contact.dist}, pos={contact.pos}, frame={contact.frame[:3]}")
+
     glfw.swap_buffers(window)
     glfw.poll_events()
 
-    elapsed = time.time() - time_start
+    elapsed = time.time() - start_time
     if model.opt.timestep - elapsed > 0:
         time.sleep(model.opt.timestep - elapsed)
 
