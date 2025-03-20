@@ -7,6 +7,7 @@ from scipy.spatial.transform import Rotation as R
 from data_logger import DataLogger
 from simulation.collision import compute_collision_impulse, compute_collision_impulse_friction
 from simulation.physics import apply_impulse, apply_impulse_friction
+import imageio  # ✅ Added for recording
 
 # --- Global state variables
 last_x, last_y = 0, 0
@@ -34,9 +35,7 @@ xml_path = os.path.join(os.path.dirname(__file__),
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
 
-# ✅ Set initial angular velocity for the ball (spin around z-axis)
-ball_joint_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "ball_joint")
-# Spin around z-axis at 20 rad/s
+# ✅ Set initial angular velocity for the ball
 angular_velocity = np.array([3.0, 0.0, 0.0])
 linear_velocity = np.array([2.0, 0.0, 0.0])
 data.qvel[:3] = linear_velocity
@@ -53,7 +52,7 @@ def compute_inertia_tensor_world(inertia_diag, q):
     rot_matrix = R.from_quat(q[[1, 2, 3, 0]]).as_matrix()
     return rot_matrix @ np.diag(inertia_diag) @ rot_matrix.T
 
-# --- Custom simulation step with impulse-based collision handling
+# --- Custom simulation steps (unchanged) ---
 
 
 def custom_step_with_impulse_collision(model, data, dt=0.01, restitution=1.0):
@@ -98,14 +97,8 @@ def custom_step_with_impulse_collision(model, data, dt=0.01, restitution=1.0):
     data.qvel[:3] = vel
     data.qvel[3:6] = omega
 
-# Collision and physics updates
-
 
 def custom_step_with_impulse_collision_friction(model, data, dt=0.01, restitution=1.0):
-    """
-    Custom simulation step with impulse-based collision and friction handling.
-    Returns updated position for 3D trajectory logging.
-    """
     mj.mj_forward(model, data)
     ball_body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "ball")
 
@@ -118,18 +111,15 @@ def custom_step_with_impulse_collision_friction(model, data, dt=0.01, restitutio
     force = data.xfrc_applied[ball_body_id, :3] + mass * model.opt.gravity
     torque = data.xfrc_applied[ball_body_id, 3:]
 
-    # Integrate velocities
     vel += (force / mass) * dt
     omega += np.linalg.inv(inertia_world) @ (torque * dt)
 
-    # Collision and friction handling
     for i in range(data.ncon):
         contact = data.contact[i]
         if not np.isnan(contact.dist) and contact.dist < 0:
             contact_point = contact.pos - data.qpos[:3]
             normal = contact.frame[:3]
 
-            # Compute both normal and friction impulses
             jn, jt = compute_collision_impulse_friction(
                 mass, inertia_world, vel, omega, contact_point, normal, restitution, friction_coefficient
             )
@@ -137,7 +127,6 @@ def custom_step_with_impulse_collision_friction(model, data, dt=0.01, restitutio
                 vel, omega, mass, inertia_world, contact_point, normal, jn, jt
             )
 
-    # Integrate positions
     pos_new = data.qpos[:3] + vel * dt
     omega_quat = np.concatenate([[0], omega])
     res = np.zeros(4)
@@ -145,17 +134,15 @@ def custom_step_with_impulse_collision_friction(model, data, dt=0.01, restitutio
     quat_new = data.qpos[3:7] + 0.5 * res * dt
     quat_new /= np.linalg.norm(quat_new)
 
-    # Update simulation state
     data.qpos[:3] = pos_new
     data.qpos[3:7] = quat_new
     data.qvel[:3] = vel
     data.qvel[3:6] = omega
 
-    # Return the new position for logging
     return pos_new
 
 
-# --- Visualization setup (unchanged) --- #
+# --- Visualization setup ---
 cam = mj.MjvCamera()
 opt = mj.MjvOption()
 mj.mjv_defaultCamera(cam)
@@ -165,7 +152,12 @@ context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
 cam.azimuth, cam.elevation, cam.distance = 90, -30, 6
 cam.lookat = np.array([0.0, 0.0, 0.5])
 
-# --- Mouse and keyboard callbacks (unchanged) --- #
+# --- Recording Setup ---
+output_video_path = "src/recordings/single_sphere_bounce.mp4"
+os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
+video_writer = imageio.get_writer(output_video_path, fps=30, codec='libx264')
+
+# --- Mouse and keyboard callbacks (unchanged) ---
 
 
 def keyboard(window, key, scancode, act, mods):
@@ -206,7 +198,7 @@ glfw.set_mouse_button_callback(window, mouse_button)
 glfw.set_cursor_pos_callback(window, mouse_move)
 glfw.set_scroll_callback(window, scroll)
 
-# --- Main simulation loop --- #
+# --- Main simulation loop with video recording ---
 while not glfw.window_should_close(window):
     pos_new = custom_step_with_impulse_collision_friction(
         model, data, dt=model.opt.timestep)
@@ -220,11 +212,22 @@ while not glfw.window_should_close(window):
                        mj.mjtCatBit.mjCAT_ALL.value, scene)
     mj.mjr_render(viewport, scene, context)
 
+    # ✅ Capture frame for video
+    rgb_buffer = np.zeros((viewport_height, viewport_width, 3), dtype=np.uint8)
+    depth_buffer = np.zeros(
+        (viewport_height, viewport_width), dtype=np.float32)
+    mj.mjr_readPixels(rgb_buffer, depth_buffer, viewport, context)
+    frame = np.flipud(rgb_buffer)  # Flip vertically
+    video_writer.append_data(frame)
+
     glfw.swap_buffers(window)
     glfw.poll_events()
 
-# ✅ Save both plots
+# --- Save plots and close video writer ---
 logger.save_plot("src/plots/height_vs_time.png")
 logger.save_trajectory_plot_3d("src/plots/3d_trajectory.png")
+
+video_writer.close()
+print(f"Simulation recording saved to {output_video_path}")
 
 glfw.terminate()
