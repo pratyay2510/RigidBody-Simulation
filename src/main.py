@@ -4,6 +4,7 @@ import numpy as np
 import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
+from data_logger import DataLogger  # ✅ Import the logger
 
 # --- Global camera and mouse state variables --- #
 last_x, last_y = 0, 0
@@ -31,6 +32,10 @@ xml_path = os.path.join(os.path.dirname(__file__),
                         "..", "models", "sphere.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
+
+# --- Initialize logger --- #
+logger = DataLogger()
+simulation_time = 0.0
 
 # --- Custom Dynamics Implementation (Based on Paper) --- #
 
@@ -146,6 +151,11 @@ while not glfw.window_should_close(window):
 
     custom_step_with_contact(model, data, dt=model.opt.timestep)
 
+    # ✅ Record z-position each frame
+    ball_z = data.qpos[2]
+    simulation_time += model.opt.timestep
+    logger.record(simulation_time, ball_z)
+
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
     mj.mjv_updateScene(model, data, opt, None, cam,
@@ -164,5 +174,8 @@ while not glfw.window_should_close(window):
     elapsed = time.time() - start_time
     if model.opt.timestep - elapsed > 0:
         time.sleep(model.opt.timestep - elapsed)
+
+# ✅ Save the height vs time plot after simulation ends
+logger.save_plot("src/plots/height_vs_time.png")
 
 glfw.terminate()
