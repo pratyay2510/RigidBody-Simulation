@@ -25,14 +25,31 @@ This work is aligned with the equations of motion, collision handling, and impul
 
 ```
 RigidBody-Simulation/
-│
-├── models/
-│   └── sphere.xml                # MuJoCo XML model with floor and sphere definitions
-│
-├── src/
-│   ├── main.py                   # Simulation entry point with interactive controls
-│
-└── rigid_bodies.pdf              # Reference paper describing the theoretical foundations
+├── README.md                # Project overview, setup instructions, etc.
+├── .gitignore               # Git ignore file (see below)
+├── requirements.txt         # List of required Python packages
+├── setup.py                 # (Optional) Setup script for packaging/distribution
+├── src/                     # Source code folder
+│   ├── __init__.py
+│   ├── main.py              # Entry point for running simulations
+│   ├── simulation/          # Module containing simulation routines
+│   │   ├── __init__.py
+│   │   ├── physics.py       # Rigid body dynamics, time integration routines
+│   │   ├── collision.py     # Collision detection and impulse resolution routines
+│   │   ├── contact.py       # Contact resolution (including shock propagation)
+│   │   ├── sdf.py           # SDF computation and triangulated surface helpers
+│   │   └── utils.py         # Utility functions (logging, parameter parsing, etc.)
+│   └── visualization/       # Module to interface with MuJoCo's rendering/GLFW window
+│       ├── __init__.py
+│       └── viewer.py        # Functions to set up and run the simulation window
+├── models/                  # MuJoCo XML models for different objects (sphere, cube, etc.)
+│   ├── sphere.xml
+│   └── cube.xml
+├── tests/                   # Test suite for unit testing simulation components
+│   ├── __init__.py
+│   └── test_simulation.py
+└── data/                    # (Optional) Folder for logging simulation data/output
+
 ```
 
 ---
