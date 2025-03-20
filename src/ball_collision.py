@@ -14,7 +14,7 @@ viewport_width, viewport_height = 1200, 900
 restitution = 1.0
 friction_coefficient = 0.3
 ball_radius = 0.1
-running = False  # ✅ To toggle simulation start/pause
+running = False  # Toggle simulation start/pause
 
 # --- Load model ---
 xml_path = os.path.join(os.path.dirname(__file__), "..",
@@ -28,7 +28,7 @@ data.qpos[7:10] = np.array([1.0, 0.0, 1.0])
 data.qvel[0:3] = np.array([1.0, 0.0, 0.5])
 data.qvel[6:9] = np.array([-1.0, 0.0, 0.5])
 
-# --- Inertia inverse matrix ---
+# --- Inertia inverse matrix computation ---
 
 
 def compute_inverse_inertia(mass, radius):
@@ -42,7 +42,7 @@ mass1, mass2 = model.body_mass[ball1_id], model.body_mass[ball2_id]
 I_inv_ball1 = compute_inverse_inertia(mass1, ball_radius)
 I_inv_ball2 = compute_inverse_inertia(mass2, ball_radius)
 
-# --- Compute collision impulse ---
+# --- Collision impulse computation ---
 
 
 def compute_collision_impulse(mass, I_inv, v_lin, v_ang, r, n, restitution, mu):
@@ -62,11 +62,15 @@ def compute_collision_impulse(mass, I_inv, v_lin, v_ang, r, n, restitution, mu):
 
     return jn * n + jt * t_dir
 
-# --- Custom collision handling step ---
+# --- Custom simulation step with integration ---
 
 
 def step_with_custom_collisions(model, data, dt=0.01):
     mj.mj_forward(model, data)
+
+    # Integrate gravity
+    for pos_idx, vel_idx in [(0, 0), (7, 6)]:
+        data.qvel[vel_idx:vel_idx + 3] += model.opt.gravity * dt
 
     # Ball-ground collisions
     for pos_idx, vel_idx, ang_idx, mass, I_inv in [(0, 0, 3, mass1, I_inv_ball1), (7, 6, 9, mass2, I_inv_ball2)]:
@@ -84,7 +88,7 @@ def step_with_custom_collisions(model, data, dt=0.01):
             data.qvel[ang_idx:ang_idx + 3] += I_inv @ np.cross(r, impulse)
             data.qpos[pos_idx + 2] = ball_radius
 
-    # Ball-ball collision
+    # Ball-ball collisions
     diff = data.qpos[7:10] - data.qpos[0:3]
     dist = np.linalg.norm(diff)
     tol = 0.01
@@ -105,12 +109,16 @@ def step_with_custom_collisions(model, data, dt=0.01):
         data.qpos[0:3] -= correction * normal
         data.qpos[7:10] += correction * normal
 
+    # Integrate positions
+    for pos_idx, vel_idx in [(0, 0), (7, 6)]:
+        data.qpos[pos_idx:pos_idx + 3] += data.qvel[vel_idx:vel_idx + 3] * dt
 
-# --- Viewer Setup ---
+
+# --- Viewer and rendering setup ---
 if not glfw.init():
     raise RuntimeError("GLFW init failed.")
-window = glfw.create_window(
-    viewport_width, viewport_height, "Two Ball Collision Simulation", None, None)
+window = glfw.create_window(viewport_width, viewport_height,
+                            "Two Ball Custom Collision Simulation", None, None)
 glfw.make_context_current(window)
 glfw.swap_interval(1)
 
@@ -128,13 +136,12 @@ cam.distance, cam.lookat[:] = 5.0, [0.0, 0.0, 1.0]
 def keyboard(window, key, scancode, action, mods):
     global running
     if action == glfw.PRESS:
-        if key == glfw.KEY_BACKSPACE:
-            mj.mj_resetData(model, data)
-            mj.mj_forward(model, data)
-            print("Simulation reset.")
-        elif key == glfw.KEY_SPACE:
+        if key == glfw.KEY_SPACE:
             running = not running
             print("Simulation running" if running else "Simulation paused")
+        elif key == glfw.KEY_BACKSPACE:
+            mj.mj_resetData(model, data)
+            print("Simulation reset.")
         elif key == glfw.KEY_ESCAPE:
             glfw.set_window_should_close(window, True)
 
@@ -174,17 +181,18 @@ glfw.set_scroll_callback(window, scroll)
 logger_ball1, logger_ball2 = DataLogger(), DataLogger()
 simulation_time = 0.0
 
-# --- Main Simulation Loop ---
+# --- Main simulation loop ---
 while not glfw.window_should_close(window):
     if running:
         step_with_custom_collisions(model, data, dt=model.opt.timestep)
         simulation_time += model.opt.timestep
 
-        # Log positions
+        # Log trajectories
         pos1, pos2 = data.qpos[0:3], data.qpos[7:10]
         logger_ball1.record(simulation_time, pos1[2], pos1[0], pos1[1])
         logger_ball2.record(simulation_time, pos2[2], pos2[0], pos2[1])
 
+    # ✅ Always render, even if paused:
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
     mj.mjv_updateScene(model, data, opt, None, cam,
@@ -194,7 +202,8 @@ while not glfw.window_should_close(window):
     glfw.swap_buffers(window)
     glfw.poll_events()
 
-# --- Save Results ---
+
+# --- Save results ---
 logger_ball1.save_plot("src/plots/ball1_height_vs_time.png")
 logger_ball1.save_trajectory_plot_3d("src/plots/ball1_trajectory_3d.png")
 logger_ball2.save_plot("src/plots/ball2_height_vs_time.png")
