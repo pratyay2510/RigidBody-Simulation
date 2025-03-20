@@ -37,7 +37,9 @@ data = mj.MjData(model)
 # ✅ Set initial angular velocity for the ball (spin around z-axis)
 ball_joint_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "ball_joint")
 # Spin around z-axis at 20 rad/s
-angular_velocity = np.array([-9.0, -5.0, 3.0])
+angular_velocity = np.array([3.0, 0.0, 0.0])
+linear_velocity = np.array([2.0, 0.0, 0.0])
+data.qvel[:3] = linear_velocity
 data.qvel[3:6] = angular_velocity
 
 # --- Initialize logger
