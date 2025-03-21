@@ -5,8 +5,8 @@ import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
 from multi_sphere_logger import MultiSphereLogger
-from physics.collision import compute_collision_impulse_friction
-from physics.physics import apply_impulse_friction
+from src.physics.collision import compute_collision_impulse_friction
+from src.physics.physics_utils import apply_impulse_friction
 import imageio
 
 # --- Global parameters ---

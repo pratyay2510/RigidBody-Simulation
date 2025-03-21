@@ -1,8 +1,8 @@
 import numpy as np
 import mujoco as mj
-from physics.physics import apply_impulse_friction
-from physics.collision import compute_collision_impulse_friction
 from scipy.spatial.transform import Rotation as R
+from src.physics.collision import compute_collision_impulse_friction
+from src.physics.physics_utils import apply_impulse_friction
 
 
 def compute_inertia_tensor_world(inertia_diag, q):

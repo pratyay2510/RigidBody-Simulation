@@ -7,7 +7,7 @@
     <geom friction="0.2 0 0" solimp="0.99 0.99 0.9" solref="0.01 0.9" />
   </default>
 
-  <option gravity="0 0 -9.8" timestep="{TIMESTEP}"/>
+  <option gravity="0 0 -9.8" timestep="0.009"/>
 
   <asset>
     <!-- Define the textures -->
@@ -25,12 +25,12 @@
 
     <!-- Inclined ground setup with placeholder for angle -->
     <body name="inclined_plane" pos="0 0 0">
-      <!-- Replace {INCLINE_ANGLE} dynamically from Python -->
-      <geom condim="3" material="MatPlane" name="ground" pos="0 0 0" size="5 5 0.1" type="plane" euler="{INCLINE_ANGLE} 0 0" solref="0.001 1.0"/>
+      <!-- Replace 0.7 dynamically from Python -->
+      <geom condim="3" material="MatPlane" name="ground" pos="0 0 0" size="5 5 0.1" type="plane" euler="0.7 0 0" solref="0.001 1.0"/>
     </body>
 
     <!-- Cube setup positioned and oriented to match the plane incline -->
-    <body name="cube" pos="0 0 3" euler="{INCLINE_ANGLE} 0 0">
+    <body name="cube" pos="0 0 0.4" euler="0.7 0 0">
       <joint name="cube_joint" type="free" damping="3.0"/>
       <geom name="cube_geom" size="0.4 0.4 0.4" type="box" material="MatCube" density="50" solref="0.001 1.0"/>
     </body>

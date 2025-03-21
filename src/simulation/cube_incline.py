@@ -15,7 +15,7 @@ viewport_width, viewport_height = 1200, 900
 friction_coefficient = 0.6
 restitution = 0.2
 record_video = True
-obj = 'cube'
+obj = 'sphere'  # 'cube' or 'sphere'
 incline_angle_rad = 0.7  # Incline angle in radians (approx. 40 degrees)
 timestep = 0.009
 
@@ -34,7 +34,7 @@ last_x, last_y = glfw.get_cursor_pos(window)
 
 # --- Load and modify XML model dynamically to set incline and timestep ---
 xml_template_path = os.path.join(os.path.dirname(
-    __file__), "..", "models", f"{obj}.xml")
+    __file__), "../..", "models", f"{obj}.xml")
 with open(xml_template_path, 'r') as file:
     xml_content = file.read()
 
@@ -42,7 +42,7 @@ xml_content = xml_content.replace("{INCLINE_ANGLE}", str(incline_angle_rad))
 xml_content = xml_content.replace("{TIMESTEP}", str(timestep))
 
 modified_xml_path = os.path.join(os.path.dirname(
-    __file__), "..", "models", f"{obj}_inclined.xml")
+    __file__), "../..", "models", f"{obj}.xml")
 with open(modified_xml_path, 'w') as file:
     file.write(xml_content)
 
