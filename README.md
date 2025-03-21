@@ -19,6 +19,7 @@ The framework implements and extends upon the formulations from the paper:
 
 🔗 [Download Paper PDF](./data/Nonconvex_Rigid_Bodies_with_Stacking.pdf)  
 📄 DOI: [10.1145/882262.88235](https://doi.org/10.1145/882262.882358)  
+📄 [Our Report](./data/report.pdf)  
 
 ---
 
