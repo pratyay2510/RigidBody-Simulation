@@ -4,7 +4,7 @@ import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
 from data_logger import DataLogger
-from algorithms import timestep_integration, general
+from src.physics.time_integeration import timestep_integration, general
 import imageio
 
 # --- Global parameters ---
