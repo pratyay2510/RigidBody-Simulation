@@ -1,153 +1,164 @@
-# Rigid Body Sphere Simulation (Phase 1) - MuJoCo
+# Rigid Body Simulation Framework using MuJoCo  
 
-## 📖 Project Overview
-
-This project is part of Phase 1 in building a robust rigid body dynamics simulation platform. The objective for this phase is to simulate a single **sphere bouncing on a static floor** using **MuJoCo’s built-in physics engine** and provide a real-time, interactive visualization with adjustable parameters. The simulation allows dynamic exploration of gravity, restitution, and sphere placement.
-
-This work is aligned with the equations of motion, collision handling, and impulse-based contact resolution methods described in the provided research paper.
-
----
-
-## ✅ Key Features
-
-- **Physics Engine**: Powered by MuJoCo’s `mj_step` for real-time simulation.
-- **Adjustable Parameters**:
-  - Gravity (cycling between preset modes).
-  - Restitution (approximate control via contact solver parameters).
-- **Interactive Controls**:
-  - Camera control (rotate, pan, zoom).
-  - Real-time repositioning of the sphere.
-- **Continuous simulation**: Runs indefinitely until manually closed.
+## 📑 Table of Contents  
+- [Abstract](#abstract)  
+- [Simulations](#simulations)  
+- [Implementation Details](#implementation-details)  
+- [Installation](#installation)  
+- [License](#license)  
 
 ---
 
-## 📁 Project Structure
+## 📝 Abstract  
+This project presents a **customizable rigid body simulation framework** leveraging **MuJoCo** for visualization and XML-based environment descriptions, combined with **impulse-based collision resolution** and **friction modeling** implemented in Python. It supports single and multi-sphere collisions, inclined plane simulations, and comparative analysis with MuJoCo’s built-in solver.  
+
+The framework implements and extends upon the formulations from the paper:  
+
+> **"Nonconvex Rigid Bodies with Stacking"**  
+> *Pratyay Dutta & Aditya Gambhir (2024)*  
+
+🔗 [Download Paper PDF](./data/Nonconvex_Rigid Bodies_with_Stacking.pdf)  
+📄 DOI: [10.1145/882262.88235](https://doi.org/10.1145/882262.882358)  
+
+---
+
+## 🎮 Simulations  
+> This section will be documented soon with individual demos, GIFs, and explanations for each simulation scenario.
+
+---
+
+## 🛠️ Implementation Details  
+
+### ✅ Key Algorithms and Their Locations:
+| Functionality                                | Location                                                        |
+|----------------------------------------------|-----------------------------------------------------------------|
+| Impulse-based collision resolution (normal & tangential impulses) | `src/physics/collision.py` — functions like `compute_collision_impulse_friction` |
+| Friction modeling                            | `src/physics/collision.py` & `src/physics/physics_utils.py`     |
+| Custom simulation stepping schemes           | `src/physics/time_integeration.py` & `src/physics/collision.py` |
+| Multi-sphere impulse and friction handling   | `src/simulation/multi_sphere_bounce.py`                         |
+| Logging of simulation trajectories & plots   | `src/visualization/data_logger.py`, `multi_sphere_logger.py`, and `logger_base.py` |
+| MuJoCo simulation viewer, callbacks, and rendering | `src/viewer/mujoco_viewer.py`                                   |
+| Centralized config system (per simulation overrides) | `src/config/` (with overrides, camera settings, recording paths, and global defaults) |
+| CLI simulation runner                        | `src/simulate.py`                                               |
+
+---
+
+### 📁 Project Directory Structure  
 
 ```
 RigidBody-Simulation/
-├── README.md                # Project overview, setup instructions, etc.
-├── .gitignore               # Git ignore file (see below)
-├── requirements.txt         # List of required Python packages
-├── setup.py                 # (Optional) Setup script for packaging/distribution
-├── src/                     # Source code folder
-│   ├── __init__.py
-│   ├── main.py              # Entry point for running simulations
-│   ├── simulation/          # Module containing simulation routines
-│   │   ├── __init__.py
-│   │   ├── physics.py       # Rigid body dynamics, time integration routines
-│   │   ├── collision.py     # Collision detection and impulse resolution routines
-│   │   ├── contact.py       # Contact resolution (including shock propagation)
-│   │   ├── sdf.py           # SDF computation and triangulated surface helpers
-│   │   └── utils.py         # Utility functions (logging, parameter parsing, etc.)
-│   └── visualization/       # Module to interface with MuJoCo's rendering/GLFW window
-│       ├── __init__.py
-│       └── viewer.py        # Functions to set up and run the simulation window
-├── models/                  # MuJoCo XML models for different objects (sphere, cube, etc.)
-│   ├── sphere.xml
-│   └── cube.xml
-├── tests/                   # Test suite for unit testing simulation components
-│   ├── __init__.py
-│   └── test_simulation.py
-└── data/                    # (Optional) Folder for logging simulation data/output
-
+│
+├── README.md                     # ✅ Project documentation (this file)
+├── requirements.txt              # 📦 Python dependencies
+├── setup.py                      # ⚙️ Packaging & distribution
+├── .gitignore                    # 🚫 Git ignored files
+│
+├── models/                       # 🏗️ MuJoCo XML models
+│   ├── ball_collision.xml        # Two-ball collision scenario
+│   ├── multi_sphere.xml          # Multiple spheres bounce setup
+│   ├── cube.xml                  # Inclined plane cube model
+│   └── sphere.xml                # Single bouncing sphere model
+│
+├── src/                          # 🚀 Source code
+│   ├── simulate.py               # CLI script for running simulations
+│   ├── config/                   # ⚙️ Central configuration
+│   ├── physics/                  # 📐 Core physics computations
+│   ├── simulation/               # 🎥 Simulation scenarios
+│   ├── viewer/                   # 👁️ Rendering and visualization handlers
+│   └── visualization/            # 📊 Logging and plotting utilities
+│
+├── data/                         # 🗃️ Simulation output
+│   ├── plots/                    # All plots (3D trajectories, height vs. time)
+│   ├── recordings/               # Recorded videos of simulations
+│   └── report.pdf                # Research paper/report
+│
+└── tests/                        # ✅ Unit test scripts
 ```
 
 ---
 
-## ⚙️ Requirements
+## 🔧 Installation  
 
-- Python 3.8+
-- MuJoCo (version >= 2.3)
-- GLFW (installed via `pip install glfw`)
-- NumPy
+### 1️⃣ Install MuJoCo  
 
-### Installation:
+Follow the instructions on the official MuJoCo releases page for your OS:  
+👉 [MuJoCo Downloads](https://github.com/google-deepmind/mujoco/releases)  
+
+**Summary**:  
+- Download and extract MuJoCo for your platform.  
+- Set environment variables (if needed) as follows:  
+  - **Linux/Mac**:  
+    ```bash
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco
+    export MUJOCO_GL=egl  # Optional for headless
+    ```  
+  - **Windows**:  
+    Add the MuJoCo installation folder to your PATH and set `MUJOCO_GL` if required.  
+
+> Ensure Python >=3.8 is installed.
+
+---
+
+### 2️⃣ Clone & Set Up This Repository  
 
 ```bash
-pip install mujoco glfw numpy
+git clone https://github.com/Aditya-gam/RigidBody-Simulation.git
+cd RigidBody-Simulation
+python -m venv venv
+source venv/bin/activate    # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-> Make sure MuJoCo is installed and configured correctly with `MUJOCO_GL` environment variable if needed.
-
 ---
 
-## 📜 XML Model: `sphere.xml`
+### 3️⃣ Running Simulations  
 
-- **Floor**:
-  - Defined as a plane (`y=0`), large area, gray color.
-- **Sphere**:
-  - Positioned initially at `y = 1.0`.
-  - Radius: `0.5 m`, mass `1.0 kg`.
-  - Defined `free joint` to allow unrestricted motion.
-  - Contact parameters are adjustable via `solimp` and `solref`.
-
----
-
-## 🎮 Interactive Controls
-
-| Control              | Action                                                                              |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| `Left Mouse Button`  | Rotate the camera (vertical and horizontal).                                        |
-| `Right Mouse Button` | Pan the camera.                                                                     |
-| `Scroll Wheel`       | Zoom the camera in and out.                                                         |
-| `P` Key              | Place the sphere at the current camera lookat (slightly above the floor).           |
-| `R` Key              | Increase restitution (approximated using `solimp` parameter).                       |
-| `G` Key              | Cycle through different gravity modes (`Earth gravity`, `Zero G`, `Light gravity`). |
-| `Backspace`          | Reset simulation state to initial conditions.                                       |
-| `Close Window`       | End simulation.                                                                     |
-
----
-
-## 🔬 How Restitution & Gravity Adjustment Works
-
-- **Restitution**:
-
-  - Controlled by modifying the third value of `geom_solimp` for `ball_geom`.
-  - Approximate elastic collision control between `0.0` and `1.0`.
-
-- **Gravity Modes**:
-
-  1. `Earth Gravity` (0, -9.81, 0)
-  2. `Zero Gravity` (0, 0, 0)
-  3. `Light Gravity` (0, -3.0, 0)
-
-> These settings can be cycled in real-time using the `G` key.
-
----
-
-## ✅ Next Steps for Future Phases
-
-- Extend simulation to multiple spheres.
-- Implement custom physics solver and collision detection using impulse-based methods (as per the paper).
-- Add UI sliders for real-time parameter tweaking.
-- Integrate contact friction controls.
-
----
-
-## 📚 Reference
-
-This project is based on the rigid body simulation methods described in the provided paper (`rigid_bodies.pdf`).
-
-> It covers forward Euler integration, impulse-based collision resolution, effective mass computation, and simulation stability criteria.
-
----
-
-## 🤝 Contribution
-
-Contributions and ideas for improvement are welcome! Feel free to open an issue or pull a request.
-
----
-
-## 📢 Author
-
-- Simulation and integration by: *Aditya*
-- Interactive controls and parameter tuning guided by: *rigid\_bodies.pdf* formulation and MuJoCo best practices.
-
----
-
-## 🚀 Run the Simulation
-
+You can run simulations using the CLI interface:  
 ```bash
 cd src
-python main.py
+python simulate.py --sim <simulation_name>
 ```
+
+Available simulation names:
+- `single_sphere`  
+- `multi_sphere`  
+- `ball_collision`  
+- `cube_incline`  
+- `compare_builtin`  
+
+Example:
+```bash
+python simulate.py --sim single_sphere
+```
+
+---
+
+### 4️⃣ Customizing Configurations  
+
+All configurations (like restitution, friction, timestep, camera angles) are centralized in `src/config/`.  
+
+- Global defaults are defined in:  
+  - `global_sim_params.py`  
+- Simulation-specific overrides are defined in:  
+  - `sim_overrides.py`  
+- Camera settings:  
+  - `camera_params.py`  
+- Recording paths:  
+  - `recording_paths.py`  
+
+Example: To modify gravity or restitution for `cube_incline` simulation, change `sim_overrides.py` under the key `cube_incline`.
+
+---
+
+### 5️⃣ Viewing Outputs  
+
+- 📈 Plots: Located in `data/plots/` organized by simulation type.  
+- 🎥 Video recordings: Stored in `data/recordings/` in separate folders for each simulation.
+
+---
+
+## 📜 License  
+
+This project is licensed under the **Apache License 2.0**.  
+
+For full license terms, see the [LICENSE](./LICENSE) file.  
