@@ -144,7 +144,7 @@ while not glfw.window_should_close(window):
 
 # --- Save plots and close video writer ---
 logger.save_plot("data/plots/cube/cube_height_vs_time.png")
-logger.save_trajectory_plot_3d("src/plots/cube/cube_3d_trajectory.png")
+logger.save_trajectory_plot_3d("data/plots/cube/cube_3d_trajectory.png")
 
 if record_video:
     video_writer.close()

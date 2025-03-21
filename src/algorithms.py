@@ -1,7 +1,7 @@
 import numpy as np
 import mujoco as mj
-from simulation.physics import apply_impulse_friction
-from simulation.collision import compute_collision_impulse_friction
+from physics.physics import apply_impulse_friction
+from physics.collision import compute_collision_impulse_friction
 from scipy.spatial.transform import Rotation as R
 
 

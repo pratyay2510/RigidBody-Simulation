@@ -1,5 +1,5 @@
 import numpy as np
-from simulation.physics import apply_impulse, apply_impulse_friction
+from physics.physics import apply_impulse, apply_impulse_friction
 from scipy.spatial.transform import Rotation as R
 import mujoco as mj
 

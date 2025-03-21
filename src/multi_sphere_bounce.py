@@ -5,8 +5,8 @@ import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
 from multi_sphere_logger import MultiSphereLogger
-from simulation.collision import compute_collision_impulse_friction
-from simulation.physics import apply_impulse_friction
+from physics.collision import compute_collision_impulse_friction
+from physics.physics import apply_impulse_friction
 import imageio
 
 # --- Global parameters ---
@@ -110,7 +110,7 @@ cam.azimuth, cam.elevation, cam.distance = 90, -30, 6
 cam.lookat = np.array([0.0, 0.0, 1.0])
 
 # --- Recording setup ---
-output_video_path = "src/recordings/multi_sphere/multi_sphere_bounce.mp4"
+output_video_path = "data/recordings/multi_sphere/multi_sphere_bounce.mp4"
 os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
 video_writer = imageio.get_writer(output_video_path, fps=30, codec='libx264')
 

@@ -5,7 +5,7 @@ import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
 from data_logger import DataLogger
-from simulation.collision import custom_step_with_impulse_collision_friction
+from physics.collision import custom_step_with_impulse_collision_friction
 import imageio  # ✅ Added for recording
 
 
