@@ -3,7 +3,7 @@ import time
 import numpy as np
 import mujoco as mj
 from mujoco.glfw import glfw
-from data_logger import DataLogger
+from src.visualization.data_logger import DataLogger
 
 # --- Global state variables
 viewport_width, viewport_height = 1200, 900

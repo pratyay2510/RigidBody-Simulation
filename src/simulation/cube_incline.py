@@ -3,7 +3,7 @@ import numpy as np
 import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
-from data_logger import DataLogger
+from src.visualization.data_logger import DataLogger
 from src.physics.time_integeration import timestep_integration, general
 import imageio
 

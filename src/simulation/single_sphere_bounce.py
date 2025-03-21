@@ -4,7 +4,7 @@ import numpy as np
 import mujoco as mj
 from mujoco.glfw import glfw
 from scipy.spatial.transform import Rotation as R
-from data_logger import DataLogger
+from src.visualization.data_logger import DataLogger
 from physics.collision import custom_step_with_impulse_collision_friction
 import imageio  # ✅ Added for recording
 
@@ -15,9 +15,11 @@ left_pressed = False
 right_pressed = False
 viewport_width, viewport_height = 1200, 900
 friction_coefficient = 0.5
-restitution = 0.5
-record_video = False
-obj = 'sphere'
+restitution = 0.9
+record_video = True
+timestep = 0.01
+incline_angle_rad = 0.0
+obj = 'sphere'  # 'cube' or 'sphere'
 
 
 # --- Initialize GLFW
@@ -34,9 +36,20 @@ glfw.swap_interval(1)
 last_x, last_y = glfw.get_cursor_pos(window)
 
 # --- Load model and initialize
-xml_path = os.path.join(os.path.dirname(__file__),
-                        "..", "models", f"{obj}.xml")
-model = mj.MjModel.from_xml_path(xml_path)
+xml_template_path = os.path.join(os.path.dirname(
+    __file__), "..", "models", f"{obj}.xml")
+with open(xml_template_path, 'r') as file:
+    xml_content = file.read()
+
+xml_content = xml_content.replace("{INCLINE_ANGLE}", str(incline_angle_rad))
+xml_content = xml_content.replace("{TIMESTEP}", str(timestep))
+
+modified_xml_path = os.path.join(os.path.dirname(
+    __file__), "..", "models", f"{obj}_inclined.xml")
+with open(modified_xml_path, 'w') as file:
+    file.write(xml_content)
+
+model = mj.MjModel.from_xml_path(modified_xml_path)
 data = mj.MjData(model)
 
 # ✅ Set initial angular velocity for the ball
@@ -61,7 +74,7 @@ cam.azimuth, cam.elevation, cam.distance = 90, -30, 6
 cam.lookat = np.array([0.0, 0.0, 0.5])
 
 # --- Recording Setup ---
-output_video_path = "data/recordings/single_sphere/single_sphere_bounce.mp4"
+output_video_path = "data/recordings/single_sphere/single_cube_bounce.mp4"
 os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
 video_writer = imageio.get_writer(output_video_path, fps=30, codec='libx264')
 
@@ -105,40 +118,6 @@ glfw.set_key_callback(window, keyboard)
 glfw.set_mouse_button_callback(window, mouse_button)
 glfw.set_cursor_pos_callback(window, mouse_move)
 glfw.set_scroll_callback(window, scroll)
-
-# --- Main simulation loop with video recording ---
-# while not glfw.window_should_close(window):
-#     pos_new = custom_step_with_impulse_collision_friction(
-#         model, data, dt=model.opt.timestep, restitution=restitution, friction_coeff=friction_coefficient)
-#     simulation_time += model.opt.timestep
-#     x, y, z = pos_new
-#     logger.record(simulation_time, z, x, y)
-
-#     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
-#     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
-#     mj.mjv_updateScene(model, data, opt, None, cam,
-#                        mj.mjtCatBit.mjCAT_ALL.value, scene)
-#     mj.mjr_render(viewport, scene, context)
-
-#     # ✅ Capture frame for video
-#     rgb_buffer = np.zeros((viewport_height, viewport_width, 3), dtype=np.uint8)
-#     depth_buffer = np.zeros(
-#         (viewport_height, viewport_width), dtype=np.float32)
-#     mj.mjr_readPixels(rgb_buffer, depth_buffer, viewport, context)
-#     frame = np.flipud(rgb_buffer)  # Flip vertically
-#     video_writer.append_data(frame)
-
-#     glfw.swap_buffers(window)
-#     glfw.poll_events()
-
-# # --- Save plots and close video writer ---
-# logger.save_plot("src/plots/height_vs_time.png")
-# logger.save_trajectory_plot_3d("src/plots/3d_trajectory.png")
-
-# video_writer.close()
-# print(f"Simulation recording saved to {output_video_path}")
-
-# glfw.terminate()
 
 while not glfw.window_should_close(window):
     pos_new = custom_step_with_impulse_collision_friction(

@@ -53,7 +53,7 @@ def compute_inertia_tensor_world(inertia_diag, q):
     return rot_matrix @ np.diag(inertia_diag) @ rot_matrix.T
 
 
-def custom_step_with_impulse_collision_friction(model, obj, data, dt=0.01, restitution=1.0, friction_coeff=1.0, contact_threshold=1e-4):
+def custom_step_with_impulse_collision_friction(model, obj, data, dt=0.01, restitution=1.0, friction_coeff=1.0, contact_threshold=0):
     mj.mj_forward(model, data)
     body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, f"{obj}")
 
