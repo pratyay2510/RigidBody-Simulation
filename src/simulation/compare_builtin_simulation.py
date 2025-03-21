@@ -25,7 +25,7 @@ last_x, last_y = glfw.get_cursor_pos(window)
 
 # --- Load MuJoCo model --- #
 xml_path = os.path.join(os.path.dirname(__file__),
-                        "..", "models", "sphere.xml")
+                        "../..", "models", "sphere.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
 
