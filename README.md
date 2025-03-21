@@ -182,31 +182,82 @@ A cube sliding down an inclined surface demonstrates frictional slip, rotations,
 ```
 RigidBody-Simulation/
 │
-├── README.md                     # ✅ Project documentation (this file)
-├── requirements.txt              # 📦 Python dependencies
-├── setup.py                      # ⚙️ Packaging & distribution
-├── .gitignore                    # 🚫 Git ignored files
+├── README.md                     # 📚 Project overview, installation, usage, and documentation
+├── .gitignore                    # 🚫 Files & folders to ignore in Git
+├── requirements.txt              # 📦 Python dependencies list
+├── setup.py                      # ⚙️ Packaging & distribution setup
+├── venv/                         # 🐍 Virtual environment (not tracked)
 │
 ├── models/                       # 🏗️ MuJoCo XML models
-│   ├── ball_collision.xml        # Two-ball collision scenario
-│   ├── multi_sphere.xml          # Multiple spheres bounce setup
-│   ├── cube.xml                  # Inclined plane cube model
-│   └── sphere.xml                # Single bouncing sphere model
+│   ├── ball_collision.xml        # Two-sphere collision scenario
+│   ├── cube.xml                  # Cube on inclined plane setup (with placeholders)
+│   ├── multi_sphere.xml          # Multiple spheres bounce scenario
+│   └── sphere.xml                # Single sphere bounce scenario
 │
-├── src/                          # 🚀 Source code
+├── src/                          # 🛠️ Core source code modules
+│   ├── __init__.py
 │   ├── simulate.py               # CLI script for running simulations
-│   ├── config/                   # ⚙️ Central configuration
-│   ├── physics/                  # 📐 Core physics computations
-│   ├── simulation/               # 🎥 Simulation scenarios
-│   ├── viewer/                   # 👁️ Rendering and visualization handlers
-│   └── visualization/            # 📊 Logging and plotting utilities
+│   ├── config/                   # ⚙️ Centralized configuration management
+│   │   ├── __init__.py
+│   │   ├── global_sim_params.py  # Global simulation defaults
+│   │   ├── camera_params.py      # Camera settings per simulation
+│   │   ├── recording_paths.py    # Output recording paths for each simulation
+│   │   └── sim_overrides.py      # Simulation-specific parameter overrides
+│   ├── physics/                  # 📐 Custom physics logic & integrators
+│   │   ├── __init__.py
+│   │   ├── collision.py          # Impulse-based collision & friction handling
+│   │   ├── physics_utils.py      # Helper utilities for physics computations
+│   │   ├── time_integeration.py  # Custom timestep integrators
+│   ├── simulation/               # 🎥 Simulation scripts
+│   │   ├── __init__.py
+│   │   ├── ball_collision.py     # Two-ball collision simulation
+│   │   ├── compare_builtin_simulation.py  # Comparison with MuJoCo’s built-in solver
+│   │   ├── cube_incline.py       # Cube sliding on incline simulation (dynamic XML modification)
+│   │   ├── multi_sphere_bounce.py # Multi-sphere bouncing simulation
+│   │   └── single_sphere_bounce.py # Single sphere bounce simulation
+│   ├── viewer/                   # 👁️ GLFW-based visualization & rendering handlers
+│   │   ├── __init__.py
+│   │   └── mujoco_viewer.py      # Viewer setup, callbacks, main loop
+│   └── visualization/            # 📊 Data logging & plotting
+│       ├── __init__.py
+│       ├── logger_base.py        # Common logger base class
+│       ├── data_logger.py        # Logger for single-object simulations
+│       └── multi_sphere_logger.py # Logger for multiple spheres with combined plots
 │
-├── data/                         # 🗃️ Simulation output
-│   ├── plots/                    # All plots (3D trajectories, height vs. time)
-│   ├── recordings/               # Recorded videos of simulations
-│   └── report.pdf                # Research paper/report
+├── data/                         # 📂 Simulation output data (plots, recordings, reports)
+│   ├── plots/                    # 📈 Simulation result plots
+│   │   ├── ball_collision/       
+│   │   │   ├── 3d_Collisions.png
+│   │   │   ├── ball1_height_vs_time.png
+│   │   │   ├── ball1_trajectory_3d.png
+│   │   │   ├── ball2_height_vs_time.png
+│   │   │   └── ball2_trajectory_3d.png
+│   │   ├── cube/                 
+│   │   │   ├── cube_3d_trajectory.png
+│   │   │   └── cube_height_vs_time.png
+│   │   ├── multi_sphere/         # (To be generated)
+│   │   ├── single_sphere/        
+│   │   │   ├── height_vs_time.png
+│   │   │   ├── 3d_trajectory.png
+│   │   │   ├── sphere_incline_simulation.png
+│   │   │   └── sphere_3d_trajectory_incline.png
+│   │   └── height_vs_time_builtin.png  # Comparison plot for MuJoCo’s built-in solver
+│   ├── recordings/               # 🎥 Simulation recordings
+│   │   ├── ball_collision/       
+│   │   │   └── two_ball_collision.mp4
+│   │   ├── cube/
+│   │   │   ├── cube_bounce.mp4
+│   │   │   └── cube_incline_simulation_good.mp4
+│   │   ├── multi_sphere/
+│   │   │   └── multi_sphere_bounce.mp4
+│   │   └── single_sphere/
+│   │       ├── single_sphere_bounce.mp4
+│   │       └── sphere_incline_simulation.mp4
+│   └── report.pdf                # 📄 Project report (PDF)
 │
-└── tests/                        # ✅ Unit test scripts
+└── tests/                        # ✅ Unit tests for simulation components
+    ├── __init__.py
+    └── test_simulation.py        # Test cases for core physics functions and simulations
 ```
 
 ---
