@@ -67,7 +67,7 @@ cam.azimuth, cam.elevation, cam.distance = 45, -30, 5
 cam.lookat = np.array([-2.0, -2.0, 0])
 
 # --- Recording Setup ---
-output_video_path = "data/recordings/cube/cube_incline_simulation_bad.mp4"
+output_video_path = "data/recordings/cube/cube_incline_simulation.mp4"
 os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
 video_writer = imageio.get_writer(output_video_path, fps=30, codec='libx264')
 
