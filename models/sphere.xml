@@ -4,7 +4,7 @@
 
   <default>
     <joint armature="0" damping="0.1" limited="false"/>
-    <geom friction="0.0" solimp="0.99 0.99 0.8" solref="0.01 0.5"/>
+    <geom friction="0.5" solimp="0.99 0.99 0.8" solref="0.01 0.5"/>
   </default>
 
   <option gravity="0 0 -9.8" timestep="0.01"/>
@@ -24,10 +24,10 @@
     <light diffuse=".5 .5 .5" dir="0 0 -1" pos="0 0 3"/>
 
     <!-- Ground with light blue color -->
-    <geom condim="3" material="MatPlane" name="ground" pos="0 0 0" size="5 5 0.1" type="plane" solref="0.001 0.5" /> 
+    <geom condim="3" material="MatPlane" name="ground" pos="0 0 0" size="5 5 0.1" type="plane" solref="0.001 0.9" /> 
 
     <!-- Ball setup -->
-    <body name="ball" pos="-4 0 1">
+    <body name="ball" pos="0 0 1">
       <joint name="ball_joint" type="free" damping="0.001"/>
       <geom name="ball_geom" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 0.5"/>
     </body>

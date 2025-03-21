@@ -3,13 +3,14 @@
   <compiler angle="radian" coordinate="local" inertiafromgeom="true"/>
 
   <default>
-    <joint armature="0" damping="0.1" limited="false"/>
-    <geom friction="0.0" solimp="0.99 0.99 0.8" solref="0.01 0.5"/>
+    <joint armature="0" damping="1" limited="false"/>
+    <geom friction="0.5" solimp="0.99 0.99 0.01" solref="0.01 0.5"/>
   </default>
 
   <option gravity="0 0 -9.8" timestep="0.01"/>
 
   <asset>
+    <!-- Define the textures -->
     <texture name="texplane" type="2d" builtin="checker" rgb1=".5 .8 .9" rgb2=".6 .9 1" width="512" height="512"/>
     <material name="MatPlane" texture="texplane" texrepeat="10 10" texuniform="true"/>
 
@@ -22,28 +23,31 @@
     <!-- Light sources -->
     <light diffuse=".5 .5 .5" dir="0 0 -1" pos="0 0 3"/>
 
-    <!-- Ground -->
-    <geom condim="3" material="MatPlane" name="ground" pos="0 0 0" size="5 5 0.1" type="plane" solref="0.001 0.5" /> 
+    <!-- Ground with light blue color -->
+    <geom condim="3" material="MatPlane" name="ground" pos="0 0 0" size="5 5 0.1" type="plane" solref="0.001 1.0" /> 
 
-    <!-- Multiple spheres -->
-    <body name="ball1" pos="-1 -2 1">
+    <!-- Ball 1 setup -->
+    <body name="ball1" pos="-1.5 -1.5 2">
       <joint name="ball_joint1" type="free" damping="0.001"/>
-      <geom name="ball_geom1" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 0.5"/>
+      <geom name="ball_geom1" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 1.0"/>
     </body>
 
-    <body name="ball2" pos="1 2 1">
+    <!-- Ball 2 setup -->
+    <body name="ball2" pos="1.5 -1.5 2">
       <joint name="ball_joint2" type="free" damping="0.001"/>
-      <geom name="ball_geom2" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 0.5"/>
+      <geom name="ball_geom2" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 1.0"/>
     </body>
 
-    <body name="ball3" pos="2 -1 1.2">
+    <!-- Ball 3 setup -->
+    <body name="ball3" pos="-1.5 1.5 2">
       <joint name="ball_joint3" type="free" damping="0.001"/>
-      <geom name="ball_geom3" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 0.5"/>
+      <geom name="ball_geom3" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 1.0"/>
     </body>
 
-    <body name="ball4" pos="-2 1 1.5">
+    <!-- Ball 4 setup -->
+    <body name="ball4" pos="1.5 1.5 2">
       <joint name="ball_joint4" type="free" damping="0.001"/>
-      <geom name="ball_geom4" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 0.5"/>
+      <geom name="ball_geom4" size="0.1" type="sphere" material="MatBall" density="50" solref="0.001 1.0"/>
     </body>
 
   </worldbody>
