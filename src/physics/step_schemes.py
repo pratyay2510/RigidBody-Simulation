@@ -19,7 +19,7 @@ def step_with_custom_collisions(model, data, ball_radius, mass1, mass2, I_inv_ba
                                 friction_coefficient, restitution, dt=0.01):
     """
     Custom collision step for two-ball collision simulation.
-    Handles collisions with ground and between two balls.
+    Properly applies collision and friction impulses, avoiding sticking issues.
     """
     mj.mj_forward(model, data)
 
@@ -27,7 +27,7 @@ def step_with_custom_collisions(model, data, ball_radius, mass1, mass2, I_inv_ba
     for pos_idx, vel_idx in [(0, 0), (7, 6)]:
         data.qvel[vel_idx:vel_idx + 3] += model.opt.gravity * dt
 
-    # Ball-ground collisions
+    # Ball-ground collisions (impulse application fixed)
     for pos_idx, vel_idx, ang_idx, mass, I_inv in [
         (0, 0, 3, mass1, I_inv_ball1),
         (7, 6, 9, mass2, I_inv_ball2)
@@ -40,16 +40,17 @@ def step_with_custom_collisions(model, data, ball_radius, mass1, mass2, I_inv_ba
         if pos[2] < ball_radius:
             contact_point = pos - ball_radius * normal
             r = contact_point - pos
-            impulse = compute_collision_impulse_friction(
+            jn, jt = compute_collision_impulse_friction(
                 mass, I_inv, linvel, angvel, r, normal, restitution, friction_coefficient
             )
-            data.qvel[vel_idx:vel_idx + 3] += impulse[0] / \
-                mass * normal + impulse[1]
-            data.qvel[ang_idx:ang_idx +
-                      3] += I_inv @ np.cross(r, impulse[0] * normal + impulse[1])
+            linvel, angvel = apply_impulse_friction(
+                linvel, angvel, mass, I_inv, r, normal, jn, jt
+            )
+            data.qvel[vel_idx:vel_idx + 3] = linvel
+            data.qvel[ang_idx:ang_idx + 3] = angvel
             data.qpos[pos_idx + 2] = ball_radius
 
-    # Ball-ball collisions
+    # Ball-ball collisions (use proper impulse application)
     diff = data.qpos[7:10] - data.qpos[0:3]
     dist = np.linalg.norm(diff)
     tol = 0.01
@@ -59,22 +60,31 @@ def step_with_custom_collisions(model, data, ball_radius, mass1, mass2, I_inv_ba
         r1 = contact_point - data.qpos[0:3]
         r2 = contact_point - data.qpos[7:10]
 
-        impulse = compute_collision_impulse_friction(
+        # Ball 1 impulse
+        jn, jt = compute_collision_impulse_friction(
             mass1, I_inv_ball1, data.qvel[0:3], data.qvel[3:
                                                           6], r1, normal, restitution, friction_coefficient
         )
-        data.qvel[0:3] += impulse[0] * normal / mass1 + impulse[1]
-        data.qvel[3:6] += I_inv_ball1 @ np.cross(
-            r1, impulse[0] * normal + impulse[1])
-        data.qvel[6:9] -= impulse[0] * normal / mass2 + impulse[1]
-        data.qvel[9:12] -= I_inv_ball2 @ np.cross(
-            r2, impulse[0] * normal + impulse[1])
+        v1, w1 = apply_impulse_friction(
+            data.qvel[0:3], data.qvel[3:6], mass1, I_inv_ball1, r1, normal, jn, jt
+        )
+        data.qvel[0:3] = v1
+        data.qvel[3:6] = w1
 
+        # Ball 2 impulse (opposite direction)
+        v2, w2 = apply_impulse_friction(
+            data.qvel[6:9], data.qvel[9:12], mass2, I_inv_ball2, r2, -
+            normal, jn, jt
+        )
+        data.qvel[6:9] = v2
+        data.qvel[9:12] = w2
+
+        # Positional correction to avoid overlap
         correction = (2 * ball_radius + tol - dist) / 2.0
         data.qpos[0:3] -= correction * normal
         data.qpos[7:10] += correction * normal
 
-    # Integrate position
+    # Integrate updated positions
     for pos_idx, vel_idx in [(0, 0), (7, 6)]:
         data.qpos[pos_idx:pos_idx + 3] += data.qvel[vel_idx:vel_idx + 3] * dt
 
