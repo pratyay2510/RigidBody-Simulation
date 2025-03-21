@@ -15,9 +15,9 @@ This project presents a **customizable rigid body simulation framework** leverag
 The framework implements and extends upon the formulations from the paper:  
 
 > **"Nonconvex Rigid Bodies with Stacking"**  
-> *Pratyay Dutta & Aditya Gambhir (2024)*  
+> *PEran Guendelman, Robert Bridson & Ronald Fedkiw (2003)*  
 
-🔗 [Download Paper PDF](./data/Nonconvex_Rigid Bodies_with_Stacking.pdf)  
+🔗 [Download Paper PDF](./data/Nonconvex_Rigid_Bodies_with_Stacking.pdf)  
 📄 DOI: [10.1145/882262.88235](https://doi.org/10.1145/882262.882358)  
 
 ---
