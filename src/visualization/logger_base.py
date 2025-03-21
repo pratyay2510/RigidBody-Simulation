@@ -7,12 +7,12 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class LoggerBase:
     """
-    Base class for logging simulation trajectory and visualizing plots.
+    Base class for logging trajectory data and generating plots.
     """
 
     def __init__(self):
         """
-        Initializes common lists for time and positions.
+        Initializes lists for time and position data.
         """
         self.times = []
         self.x_positions = []
@@ -21,10 +21,10 @@ class LoggerBase:
 
     def record(self, time, pos):
         """
-        Records time and position values.
+        Record a timestep's position and time.
         Args:
-            time (float): Current simulation time.
-            pos (np.ndarray or list): Position [x, y, z].
+            time (float): Simulation time.
+            pos (list or np.ndarray): Position (x, y, z).
         """
         self.times.append(time)
         self.x_positions.append(pos[0])
@@ -33,22 +33,22 @@ class LoggerBase:
 
     def save_height_vs_time(self, save_path):
         """
-        Saves height (z-axis) vs time plot.
+        Save a height vs time plot.
         """
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.figure(figsize=(10, 6))
         plt.plot(self.times, self.z_positions, marker="o", linestyle="-")
         plt.xlabel("Time (s)")
-        plt.ylabel("Height (z)")
+        plt.ylabel("Height (z-axis)")
         plt.title("Height vs Time")
         plt.grid(True)
         plt.savefig(save_path)
         plt.close()
-        print(f"Saved: {save_path}")
+        print(f"Height vs Time plot saved at: {save_path}")
 
-    def save_trajectory_3d(self, save_path):
+    def save_3d_trajectory(self, save_path):
         """
-        Saves 3D trajectory plot.
+        Save a 3D trajectory plot.
         """
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         fig = plt.figure(figsize=(10, 7))
@@ -61,4 +61,4 @@ class LoggerBase:
         ax.set_title("3D Trajectory")
         plt.savefig(save_path)
         plt.close()
-        print(f"Saved: {save_path}")
+        print(f"3D trajectory plot saved at: {save_path}")
