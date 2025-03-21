@@ -18,7 +18,7 @@ ball_radius = 0.1
 running = False  # Toggle simulation start/pause
 
 # --- Load model ---
-xml_path = os.path.join(os.path.dirname(__file__), "..",
+xml_path = os.path.join(os.path.dirname(__file__), "../..",
                         "models", "ball_collision.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
