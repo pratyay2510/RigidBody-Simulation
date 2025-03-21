@@ -1,7 +1,7 @@
 SIMULATION_OVERRIDES = {
     "single_sphere_bounce": {
         "FRICTION_COEFFICIENT": 0.5,
-        "RESTITUTION": 0.9,
+        "RESTITUTION": 1.0,
         "TIMESTEP": 0.01,
         "INCLINE_ANGLE_RAD": 0.0,
         "RECORD_VIDEO": True
