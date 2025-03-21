@@ -108,6 +108,6 @@ while not glfw.window_should_close(window):
     glfw.poll_events()
 
 # --- Save results plot for comparison --- #
-logger.save_plot("src/plots/height_vs_time_builtin.png")
+logger.save_plot("data/plots/height_vs_time_builtin.png")
 
 glfw.terminate()

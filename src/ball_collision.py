@@ -133,7 +133,7 @@ context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
 cam.distance, cam.lookat[:] = 5.0, [0.0, 0.0, 1.0]
 
 # ✅ Setup video recording
-video_output_path = "src/recordings/two_ball_collision.mp4"
+video_output_path = "data/recordings/ball_collision/two_ball_collision.mp4"
 os.makedirs(os.path.dirname(video_output_path), exist_ok=True)
 video_writer = imageio.get_writer(video_output_path, fps=30, codec='libx264')
 
@@ -217,10 +217,12 @@ while not glfw.window_should_close(window):
 
 # --- Save results and close video ---
 video_writer.close()
-logger_ball1.save_plot("src/plots/ball1_height_vs_time.png")
-logger_ball1.save_trajectory_plot_3d("src/plots/ball1_trajectory_3d.png")
-logger_ball2.save_plot("src/plots/ball2_height_vs_time.png")
-logger_ball2.save_trajectory_plot_3d("src/plots/ball2_trajectory_3d.png")
+logger_ball1.save_plot("data/plots/ball_collision/ball1_height_vs_time.png")
+logger_ball1.save_trajectory_plot_3d(
+    "data/plots/ball_collision/ball1_trajectory_3d.png")
+logger_ball2.save_plot("data/plots/ball_collision/ball2_height_vs_time.png")
+logger_ball2.save_trajectory_plot_3d(
+    "data/plots/ball_collision/ball2_trajectory_3d.png")
 
 glfw.terminate()
 print(f"Video saved at: {video_output_path}")

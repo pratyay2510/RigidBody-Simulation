@@ -110,7 +110,7 @@ cam.azimuth, cam.elevation, cam.distance = 90, -30, 6
 cam.lookat = np.array([0.0, 0.0, 1.0])
 
 # --- Recording setup ---
-output_video_path = "src/recordings/multi_sphere_bounce.mp4"
+output_video_path = "src/recordings/multi_sphere/multi_sphere_bounce.mp4"
 os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
 video_writer = imageio.get_writer(output_video_path, fps=30, codec='libx264')
 
@@ -178,7 +178,7 @@ while not glfw.window_should_close(window):
     glfw.poll_events()
 
 # --- Save plots and recording ---
-logger.save_all_plots("src/plots")
+logger.save_all_plots("data/multi_sphere/plots")
 video_writer.close()
 print(f"Simulation recording saved to {output_video_path}")
 

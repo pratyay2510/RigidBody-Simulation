@@ -67,7 +67,7 @@ cam.azimuth, cam.elevation, cam.distance = 45, -30, 5
 cam.lookat = np.array([-2.0, -2.0, 0])
 
 # --- Recording Setup ---
-output_video_path = "src/recordings/cube_incline_simulation_bad.mp4"
+output_video_path = "data/recordings/cube/cube_incline_simulation_bad.mp4"
 os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
 video_writer = imageio.get_writer(output_video_path, fps=30, codec='libx264')
 
@@ -143,8 +143,8 @@ while not glfw.window_should_close(window):
     glfw.poll_events()
 
 # --- Save plots and close video writer ---
-logger.save_plot("src/plots/cube_height_vs_time.png")
-logger.save_trajectory_plot_3d("src/plots/cube_3d_trajectory.png")
+logger.save_plot("data/plots/cube/cube_height_vs_time.png")
+logger.save_trajectory_plot_3d("src/plots/cube/cube_3d_trajectory.png")
 
 if record_video:
     video_writer.close()

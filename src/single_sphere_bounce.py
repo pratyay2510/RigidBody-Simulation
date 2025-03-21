@@ -61,7 +61,7 @@ cam.azimuth, cam.elevation, cam.distance = 90, -30, 6
 cam.lookat = np.array([0.0, 0.0, 0.5])
 
 # --- Recording Setup ---
-output_video_path = "src/recordings/single_sphere_bounce.mp4"
+output_video_path = "data/recordings/single_sphere/single_sphere_bounce.mp4"
 os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
 video_writer = imageio.get_writer(output_video_path, fps=30, codec='libx264')
 
@@ -167,8 +167,8 @@ while not glfw.window_should_close(window):
     glfw.poll_events()
 
 # --- Save plots and close video writer ---
-logger.save_plot("src/plots/height_vs_time.png")
-logger.save_trajectory_plot_3d("src/plots/3d_trajectory.png")
+logger.save_plot("data/plots/single_sphere/height_vs_time.png")
+logger.save_trajectory_plot_3d("data/plots/single_sphere/3d_trajectory.png")
 
 if record_video:
     video_writer.close()
