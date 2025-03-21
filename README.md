@@ -99,7 +99,7 @@ A sphere placed on an incline rolls and bounces, demonstrating combined gravitat
 
 **Plots:**  
 - Height vs Time:  
-![Height vs Time](data/plots/single_sphere/sphere_incline_simulation.png)  
+![Height vs Time](data/plots/single_sphere/sphere_height_vs_time_incline.png)  
 
 - 3D Trajectory:  
 ![3D Trajectory](data/plots/single_sphere/sphere_3d_trajectory_incline.png)  
