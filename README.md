@@ -5,6 +5,9 @@
 - [Simulations](#simulations)  
 - [Implementation Details](#implementation-details)  
 - [Installation](#installation)  
+  - [Using Setup.py (Recommended)](#using-setup-py-recommended)  
+  - [Manual Setup (Alternative)](#manual-setup-alternative)  
+- [How to Run Simulations](#how-to-run-simulations)  
 - [License](#license)  
 
 ---
@@ -264,28 +267,62 @@ RigidBody-Simulation/
 
 ## 🔧 Installation  
 
-### 1️⃣ Install MuJoCo  
+### ✅ Using `setup.py` (Recommended)  
 
-Follow the instructions on the official MuJoCo releases page for your OS:  
-👉 [MuJoCo Downloads](https://github.com/google-deepmind/mujoco/releases)  
+> This method will install the project as a Python package locally and make simulation commands easily accessible.
 
-**Summary**:  
-- Download and extract MuJoCo for your platform.  
-- Set environment variables (if needed) as follows:  
-  - **Linux/Mac**:  
-    ```bash
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco
-    export MUJOCO_GL=egl  # Optional for headless
-    ```  
-  - **Windows**:  
-    Add the MuJoCo installation folder to your PATH and set `MUJOCO_GL` if required.  
+#### 1️⃣ Clone the repository:  
+```bash
+git clone https://github.com/Aditya-gam/RigidBody-Simulation.git
+cd RigidBody-Simulation
+```
 
-> Ensure Python >=3.8 is installed.
+#### 2️⃣ Set up a virtual environment:  
+```bash
+python -m venv venv
+source venv/bin/activate  # For Windows: venv\Scripts\activate
+```
+
+#### 3️⃣ Install the project in editable mode using `setup.py`:  
+```bash
+pip install -e .
+```
+
+#### ✅ Common `setup.py` commands:
+| Command                      | Description                                                        |
+|------------------------------|--------------------------------------------------------------------|
+| `pip install -e .`           | Installs the package in editable mode. All changes are reflected automatically. |
+| `python setup.py sdist bdist_wheel` | Builds source and wheel distributions (found in the `dist/` directory).     |
+| `pip install dist/<your-wheel-file>.whl` | Install from built distribution manually if needed.                         |
+| `python setup.py --help`     | Lists all available `setup.py` commands.                           |
 
 ---
 
-### 2️⃣ Clone & Set Up This Repository  
+### ⚠️ **If the `setup.py` installation doesn't work due to environment issues, follow the manual installation method below.**
 
+---
+
+### ✅ Manual Setup (Alternative)
+
+#### 1️⃣ Install MuJoCo  
+
+Follow the official MuJoCo installation instructions for your OS:  
+👉 [MuJoCo Downloads](https://github.com/google-deepmind/mujoco/releases)  
+
+**Basic Setup**:
+- Download MuJoCo and extract.
+- Set environment variables:  
+  - **Linux / Mac**:
+  ```bash
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco
+  export MUJOCO_GL=egl  # Optional for headless
+  ```
+  - **Windows**:  
+  Add MuJoCo to your system PATH and set `MUJOCO_GL` if required.  
+
+> Make sure Python >=3.8 is installed.
+
+#### 2️⃣ Set up manually:
 ```bash
 git clone https://github.com/Aditya-gam/RigidBody-Simulation.git
 cd RigidBody-Simulation
@@ -293,57 +330,55 @@ python -m venv venv
 source venv/bin/activate    # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
-
 ---
 
-### 3️⃣ Running Simulations  
+## ▶️ How to Run Simulations
 
-You can run simulations using the CLI interface:  
+You can now run simulations either through the CLI or manually:
+
+### ✅ Run using CLI (after setup.py installation or manual setup):
 ```bash
-cd src
-python simulate.py --sim <simulation_name>
+python src/simulate.py --sim <simulation_name>
+```
+**Available simulation names**:
+- `single_sphere`
+- `multi_sphere`
+- `ball_collision`
+- `cube_incline`
+- `compare_builtin`
+
+**Example**:
+```bash
+python src/simulate.py --sim single_sphere
+```
+---
+
+## ✅ Building and Distributing (Optional Developer Steps)
+
+If you want to build the package for distribution or uploading to PyPI:
+```bash
+python setup.py sdist bdist_wheel
+```
+You’ll find built distributions in the `dist/` directory.
+
+To install from these built files:
+```bash
+pip install dist/RigidBody_Simulation_Framework-1.0.0-py3-none-any.whl
 ```
 
-Available simulation names:
-- `single_sphere`  
-- `multi_sphere`  
-- `ball_collision`  
-- `cube_incline`  
-- `compare_builtin`  
+---
 
-Example:
+## ✅ Updating or Uninstalling:
+- To update your editable install:
 ```bash
-python simulate.py --sim single_sphere
+pip install -e . --upgrade
 ```
-
----
-
-### 4️⃣ Customizing Configurations  
-
-All configurations (like restitution, friction, timestep, camera angles) are centralized in `src/config/`.  
-
-- Global defaults are defined in:  
-  - `global_sim_params.py`  
-- Simulation-specific overrides are defined in:  
-  - `sim_overrides.py`  
-- Camera settings:  
-  - `camera_params.py`  
-- Recording paths:  
-  - `recording_paths.py`  
-
-Example: To modify gravity or restitution for `cube_incline` simulation, change `sim_overrides.py` under the key `cube_incline`.
-
----
-
-### 5️⃣ Viewing Outputs  
-
-- 📈 Plots: Located in `data/plots/` organized by simulation type.  
-- 🎥 Video recordings: Stored in `data/recordings/` in separate folders for each simulation.
-
+- To uninstall:
+```bash
+pip uninstall RigidBody-Simulation-Framework
+```
 ---
 
 ## 📜 License  
-
 This project is licensed under the **Apache License 2.0**.  
-
-For full license terms, see the [LICENSE](./LICENSE) file.  
+For full license terms, refer to the [LICENSE](./LICENSE) file.
