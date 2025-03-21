@@ -1,45 +1,39 @@
 import os
-import time
 import numpy as np
 import mujoco as mj
-from mujoco.glfw import glfw
+import imageio
+import glfw
 from src.visualization.data_logger import DataLogger
-from src.config import load_sim_config  # ✅ Load centralized configuration
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import imageio  # ✅ For video recording
+from src.config import load_sim_config
+from src.viewer.mujoco_viewer import (
+    initialize_glfw_window, setup_mujoco_camera,
+    register_callbacks, start_main_loop
+)
 
-# --- Load simulation-specific config ---
+# ✅ Load centralized config for ball collision
 config = load_sim_config("ball_collision")
-
-# Extract parameters from config
 friction_coefficient = config["FRICTION_COEFFICIENT"]
 restitution = config["RESTITUTION"]
-video_output_path = config["RECORDING_PATH"]
+timestep = config["TIMESTEP"]
 camera_settings = config["CAMERA"]
-timestep = config["TIMESTEP"]  # In case timestep is used dynamically
-ball_radius = 0.1  # This is intrinsic to model geometry; keep hardcoded.
+output_video_path = config["RECORDING_PATH"]
+record_video = config["RECORD_VIDEO"]
 
-# --- Global state variables ---
-last_x, last_y = 0, 0
-left_pressed, right_pressed = False, False
-viewport_width, viewport_height = 1200, 900
-record_video = False
-running = False  # Simulation start/pause toggle
+# Hardcoded model geometry parameter (not from config)
+ball_radius = 0.1
 
-# --- Load the model for ball collision simulation ---
-xml_path = os.path.join(os.path.dirname(__file__),
-                        "../..", "models", "ball_collision.xml")
+# ✅ Load model for ball collision simulation
+xml_path = os.path.join("models", "ball_collision.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
 
-# --- Initial setup for two balls (custom initial conditions) ---
+# ✅ Set custom initial conditions for the two colliding balls
 data.qpos[0:3] = np.array([-1.0, 0.0, 1.0])
 data.qpos[7:10] = np.array([1.0, 0.0, 1.0])
 data.qvel[0:3] = np.array([1.0, 0.0, 0.5])
 data.qvel[6:9] = np.array([-1.0, 0.0, 0.5])
 
-# --- Pre-compute inverse inertia tensors for both balls ---
+# ✅ Inverse inertia tensor computation (unique physics logic)
 
 
 def compute_inverse_inertia(mass, radius):
@@ -53,7 +47,7 @@ mass1, mass2 = model.body_mass[ball1_id], model.body_mass[ball2_id]
 I_inv_ball1 = compute_inverse_inertia(mass1, ball_radius)
 I_inv_ball2 = compute_inverse_inertia(mass2, ball_radius)
 
-# --- Compute collision impulse with friction ---
+# ✅ Custom collision impulse calculation
 
 
 def compute_collision_impulse(mass, I_inv, v_lin, v_ang, r, n, restitution, mu):
@@ -73,17 +67,17 @@ def compute_collision_impulse(mass, I_inv, v_lin, v_ang, r, n, restitution, mu):
 
     return jn * n + jt * t_dir
 
-# --- Custom simulation step with collision handling ---
+# ✅ Custom simulation step logic for collisions
 
 
 def step_with_custom_collisions(model, data, dt=0.01):
     mj.mj_forward(model, data)
 
-    # Integrate gravity effect
+    # Apply gravity
     for pos_idx, vel_idx in [(0, 0), (7, 6)]:
         data.qvel[vel_idx:vel_idx + 3] += model.opt.gravity * dt
 
-    # Handle collisions with ground
+    # Ball-ground collisions
     for pos_idx, vel_idx, ang_idx, mass, I_inv in [
         (0, 0, 3, mass1, I_inv_ball1),
         (7, 6, 9, mass2, I_inv_ball2)
@@ -97,13 +91,12 @@ def step_with_custom_collisions(model, data, dt=0.01):
             contact_point = pos - ball_radius * normal
             r = contact_point - pos
             impulse = compute_collision_impulse(
-                mass, I_inv, linvel, angvel, r, normal, restitution, friction_coefficient
-            )
+                mass, I_inv, linvel, angvel, r, normal, restitution, friction_coefficient)
             data.qvel[vel_idx:vel_idx + 3] += impulse / mass
             data.qvel[ang_idx:ang_idx + 3] += I_inv @ np.cross(r, impulse)
             data.qpos[pos_idx + 2] = ball_radius
 
-    # Ball-ball collision handling
+    # Ball-ball collision detection & resolution
     diff = data.qpos[7:10] - data.qpos[0:3]
     dist = np.linalg.norm(diff)
     tol = 0.01
@@ -114,9 +107,7 @@ def step_with_custom_collisions(model, data, dt=0.01):
         r2 = contact_point - data.qpos[7:10]
 
         impulse = compute_collision_impulse(
-            mass1, I_inv_ball1, data.qvel[0:3], data.qvel[3:
-                                                          6], r1, normal, restitution, friction_coefficient
-        )
+            mass1, I_inv_ball1, data.qvel[0:3], data.qvel[3:6], r1, normal, restitution, friction_coefficient)
         data.qvel[0:3] += impulse / mass1
         data.qvel[3:6] += I_inv_ball1 @ np.cross(r1, impulse)
         data.qvel[6:9] -= impulse / mass2
@@ -130,119 +121,66 @@ def step_with_custom_collisions(model, data, dt=0.01):
     for pos_idx, vel_idx in [(0, 0), (7, 6)]:
         data.qpos[pos_idx:pos_idx + 3] += data.qvel[vel_idx:vel_idx + 3] * dt
 
-
-# --- Initialize GLFW viewer window ---
-if not glfw.init():
-    raise RuntimeError("GLFW initialization failed.")
-
-window = glfw.create_window(
-    viewport_width, viewport_height, "Ball Collision Simulation", None, None)
-glfw.make_context_current(window)
-glfw.swap_interval(1)
-
-# --- Setup camera from config ---
-cam = mj.MjvCamera()
-opt = mj.MjvOption()
-mj.mjv_defaultCamera(cam)
-mj.mjv_defaultOption(opt)
-scene = mj.MjvScene(model, maxgeom=10000)
-context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
-
-cam.azimuth = camera_settings.get("azimuth", 45)
-cam.elevation = camera_settings.get("elevation", -20)
-cam.distance = camera_settings.get("distance", 5)
-cam.lookat[:] = np.array(camera_settings.get("lookat", [0.0, 0.0, 1.0]))
-
-# --- Setup video recording if enabled ---
-if record_video and video_output_path:
-    os.makedirs(os.path.dirname(video_output_path), exist_ok=True)
-    video_writer = imageio.get_writer(
-        video_output_path, fps=30, codec='libx264')
-else:
-    video_writer = None
-
-# --- Define input callbacks ---
+    # Return both ball positions for logging
+    return data.qpos[0:3], data.qpos[7:10]
 
 
-def keyboard(window, key, scancode, action, mods):
+# ✅ Data loggers for two balls
+logger_ball1 = DataLogger()
+logger_ball2 = DataLogger()
+running = False  # Start/pause state toggle
+
+# ✅ Custom keyboard handler to toggle running state
+
+
+def custom_keyboard_handler(window, key, scancode, act, mods):
     global running
-    if action == glfw.PRESS:
+    if act == glfw.PRESS:
         if key == glfw.KEY_SPACE:
             running = not running
             print("Simulation running" if running else "Simulation paused")
-        elif key == glfw.KEY_BACKSPACE:
-            mj.mj_resetData(model, data)
-            print("Simulation reset.")
-        elif key == glfw.KEY_ESCAPE:
-            glfw.set_window_should_close(window, True)
+
+# ✅ Define step function wrapper for main loop
 
 
-def mouse_button(window, button, act, mods):
-    global left_pressed, right_pressed, last_x, last_y
-    if button == glfw.MOUSE_BUTTON_LEFT:
-        left_pressed = (act == glfw.PRESS)
-    if button == glfw.MOUSE_BUTTON_RIGHT:
-        right_pressed = (act == glfw.PRESS)
-    last_x, last_y = glfw.get_cursor_pos(window)
-
-
-def mouse_move(window, xpos, ypos):
-    global last_x, last_y
-    dx, dy = xpos - last_x, ypos - last_y
-    last_x, last_y = xpos, ypos
-    if left_pressed:
-        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ROTATE_V,
-                          dx / viewport_height, dy / viewport_height, scene, cam)
-    if right_pressed:
-        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_MOVE_H,
-                          dx / viewport_height, dy / viewport_height, scene, cam)
-
-
-def scroll(window, xoffset, yoffset):
-    mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ZOOM,
-                      0, -0.05 * yoffset, scene, cam)
-
-
-# --- Register callbacks ---
-glfw.set_key_callback(window, keyboard)
-glfw.set_mouse_button_callback(window, mouse_button)
-glfw.set_cursor_pos_callback(window, mouse_move)
-glfw.set_scroll_callback(window, scroll)
-
-# --- Data loggers for ball trajectories ---
-logger_ball1, logger_ball2 = DataLogger(), DataLogger()
-simulation_time = 0.0
-
-# --- Main simulation loop ---
-while not glfw.window_should_close(window):
+def ball_collision_step(model, data, dt):
     if running:
-        step_with_custom_collisions(model, data, dt=model.opt.timestep)
-        simulation_time += model.opt.timestep
+        ball1_pos, ball2_pos = step_with_custom_collisions(model, data, dt)
+        simulation_time = data.time
+        logger_ball1.record(
+            simulation_time, ball1_pos[2], ball1_pos[0], ball1_pos[1])
+        logger_ball2.record(
+            simulation_time, ball2_pos[2], ball2_pos[0], ball2_pos[1])
+    return None  # No single object position; two separate logs used
 
-        pos1, pos2 = data.qpos[0:3], data.qpos[7:10]
-        logger_ball1.record(simulation_time, pos1[2], pos1[0], pos1[1])
-        logger_ball2.record(simulation_time, pos2[2], pos2[0], pos2[1])
 
-    viewport_width, viewport_height = glfw.get_framebuffer_size(window)
-    viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
-    mj.mjv_updateScene(model, data, opt, None, cam,
-                       mj.mjtCatBit.mjCAT_ALL.value, scene)
-    mj.mjr_render(viewport, scene, context)
+# ✅ Initialize viewer window
+window = initialize_glfw_window("Ball Collision Simulation")
 
-    # Capture frame if recording is enabled
-    if record_video and video_writer is not None:
-        rgb_buffer = np.zeros(
-            (viewport.height, viewport.width, 3), dtype=np.uint8)
-        depth_buffer = np.zeros(
-            (viewport.height, viewport.width), dtype=np.float32)
-        mj.mjr_readPixels(rgb_buffer, depth_buffer, viewport, context)
-        frame = np.flipud(rgb_buffer)
-        video_writer.append_data(frame)
+# ✅ Setup camera via shared utility
+cam, opt, scene, context = setup_mujoco_camera(model, camera_settings)
 
-    glfw.swap_buffers(window)
-    glfw.poll_events()
+# ✅ Setup recording if enabled
+video_writer = None
+if record_video and output_video_path:
+    os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
+    video_writer = imageio.get_writer(
+        output_video_path, fps=30, codec="libx264")
 
-# --- Save plots and close video writer ---
+# ✅ Register callbacks
+register_callbacks(window, model, data, cam, scene,
+                   custom_keyboard_handler=custom_keyboard_handler)
+
+# ✅ Start simulation loop using centralized utility
+start_main_loop(
+    window, model, data, cam, opt, scene, context,
+    step_function=ball_collision_step,
+    logger=None,  # separate loggers per ball
+    record_video=record_video,
+    video_writer=video_writer
+)
+
+# ✅ Save results & plots
 logger_ball1.save_plot("data/plots/ball_collision/ball1_height_vs_time.png")
 logger_ball1.save_trajectory_plot_3d(
     "data/plots/ball_collision/ball1_trajectory_3d.png")
@@ -250,8 +188,6 @@ logger_ball2.save_plot("data/plots/ball_collision/ball2_height_vs_time.png")
 logger_ball2.save_trajectory_plot_3d(
     "data/plots/ball_collision/ball2_trajectory_3d.png")
 
-if record_video and video_writer is not None:
+if video_writer is not None:
     video_writer.close()
-    print(f"Simulation recording saved at: {video_output_path}")
-
-glfw.terminate()
+    print(f"Simulation recording saved to: {output_video_path}")

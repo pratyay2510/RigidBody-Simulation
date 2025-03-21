@@ -1,131 +1,59 @@
 import os
-import time
 import numpy as np
 import mujoco as mj
-from mujoco.glfw import glfw
 from src.visualization.data_logger import DataLogger
-from src.config import load_sim_config  # ✅ Import centralized config loader
+from src.config import load_sim_config
+from src.viewer.mujoco_viewer import (
+    initialize_glfw_window, setup_mujoco_camera,
+    register_callbacks, start_main_loop
+)
 
-# --- Load configuration for this simulation ---
-# Although this simulation uses MuJoCo built-in physics without custom impulses,
-# we will still use camera and global settings from config for consistency.
-# Default camera settings and global params
+# ✅ Load centralized config for single sphere bounce to reuse camera settings
 config = load_sim_config("single_sphere_bounce")
 camera_settings = config["CAMERA"]
 
-# --- Global state variables ---
-viewport_width, viewport_height = 1200, 900
-last_x, last_y = 0, 0
-left_pressed, right_pressed = False, False
-
-# --- Initialize GLFW ---
-if not glfw.init():
-    raise RuntimeError("Could not initialize GLFW")
-
-window = glfw.create_window(
-    viewport_width, viewport_height,
-    "MuJoCo Built-in Simulation (No Custom Impulse)",
-    None, None
-)
-if not window:
-    glfw.terminate()
-    raise RuntimeError("Could not create GLFW window")
-
-glfw.make_context_current(window)
-glfw.swap_interval(1)
-last_x, last_y = glfw.get_cursor_pos(window)
-
-# --- Load MuJoCo model (default sphere model) ---
-xml_path = os.path.join(os.path.dirname(__file__),
-                        "../..", "models", "sphere.xml")
+# ✅ Load the MuJoCo model (sphere model for built-in simulation)
+xml_path = os.path.join("models", "sphere.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
 
-# --- Set custom initial conditions (not part of global config, simulation-specific) ---
-data.qvel[3:6] = np.zeros(3)  # No initial angular velocity
+# ✅ Set simulation-specific initial conditions (not part of global config)
 data.qpos[2] = 1.0  # Start from height 1.0
+data.qvel[3:6] = np.zeros(3)  # No initial angular velocity
 
-# --- Initialize data logger for height-time analysis ---
+# ✅ Create data logger to record height vs. time
 logger = DataLogger()
-simulation_time = 0.0
 
-# --- Camera setup using centralized config camera settings ---
-cam = mj.MjvCamera()
-opt = mj.MjvOption()
-mj.mjv_defaultCamera(cam)
-mj.mjv_defaultOption(opt)
-
-scene = mj.MjvScene(model, maxgeom=10000)
-context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
-
-cam.azimuth = camera_settings.get("azimuth", 90)
-cam.elevation = camera_settings.get("elevation", -30)
-cam.distance = camera_settings.get("distance", 6)
-cam.lookat[:] = np.array(camera_settings.get("lookat", [0.0, 0.0, 0.5]))
-
-# --- Mouse and keyboard callbacks for camera control ---
+# ✅ Define simulation step using Mujoco's built-in integrator (no custom impulses)
 
 
-def keyboard(window, key, scancode, act, mods):
-    if act == glfw.PRESS and key == glfw.KEY_BACKSPACE:
-        mj.mj_resetData(model, data)
-        mj.mj_forward(model, data)
-        print("Simulation reset.")
-
-
-def mouse_button(window, button, act, mods):
-    global left_pressed, right_pressed, last_x, last_y
-    if button == glfw.MOUSE_BUTTON_LEFT:
-        left_pressed = (act == glfw.PRESS)
-    if button == glfw.MOUSE_BUTTON_RIGHT:
-        right_pressed = (act == glfw.PRESS)
-    last_x, last_y = glfw.get_cursor_pos(window)
-
-
-def mouse_move(window, xpos, ypos):
-    global last_x, last_y
-    dx, dy = xpos - last_x, ypos - last_y
-    last_x, last_y = xpos, ypos
-    if left_pressed:
-        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ROTATE_V,
-                          dx / viewport_height, dy / viewport_height, scene, cam)
-    if right_pressed:
-        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_MOVE_H,
-                          dx / viewport_height, dy / viewport_height, scene, cam)
-
-
-def scroll(window, xoffset, yoffset):
-    mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ZOOM,
-                      0, -0.05 * yoffset, scene, cam)
-
-
-# --- Register callbacks ---
-glfw.set_key_callback(window, keyboard)
-glfw.set_mouse_button_callback(window, mouse_button)
-glfw.set_cursor_pos_callback(window, mouse_move)
-glfw.set_scroll_callback(window, scroll)
-
-# --- Simulation loop (uses Mujoco’s built-in collision & friction model) ---
-while not glfw.window_should_close(window):
-    # ✅ Use built-in Mujoco integrator without custom impulse/friction
-    mj.mj_step(model, data)
-
-    # Log height over time
-    simulation_time += model.opt.timestep
+def mujoco_builtin_step(model, data, dt):
+    mj.mj_step(model, data)  # Built-in Mujoco physics step
+    simulation_time = data.time
+    # Log height of the sphere
     logger.record(simulation_time, data.qpos[2])
+    return None  # No position return needed
 
-    # Render scene
-    viewport_width, viewport_height = glfw.get_framebuffer_size(window)
-    viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
-    mj.mjv_updateScene(model, data, opt, None, cam,
-                       mj.mjtCatBit.mjCAT_ALL.value, scene)
-    mj.mjr_render(viewport, scene, context)
 
-    glfw.swap_buffers(window)
-    glfw.poll_events()
+# ✅ Initialize GLFW window using shared viewer
+window = initialize_glfw_window(
+    "MuJoCo Built-in Simulation (No Custom Impulse)")
 
-# --- Save results (height vs. time plot) ---
-logger.save_plot("data/plots/height_vs_time_builtin.png")
-print("Built-in simulation completed. Height plot saved to data/plots/height_vs_time_builtin.png")
+# ✅ Setup camera from centralized config using shared viewer
+cam, opt, scene, context = setup_mujoco_camera(model, camera_settings)
 
-glfw.terminate()
+# ✅ Register callbacks (mouse, scroll, and camera controls)
+register_callbacks(window, model, data, cam, scene)
+
+# ✅ Start simulation loop using shared main loop
+start_main_loop(
+    window, model, data, cam, opt, scene, context,
+    step_function=mujoco_builtin_step,
+    logger=None,  # Logger updates are handled inside the step function
+    record_video=False  # No recording for this comparison simulation
+)
+
+# ✅ Save results: height vs. time plot
+output_plot_path = "data/plots/height_vs_time_builtin.png"
+logger.save_plot(output_plot_path)
+print(f"Built-in simulation completed. Plot saved at: {output_plot_path}")

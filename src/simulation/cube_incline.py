@@ -1,169 +1,101 @@
 import os
 import numpy as np
 import mujoco as mj
-from mujoco.glfw import glfw
-from scipy.spatial.transform import Rotation as R
 from src.visualization.data_logger import DataLogger
-from src.physics.time_integeration import timestep_integration, general
-# ✅ Import the unified configuration loader
+from src.physics.time_integeration import timestep_integration
 from src.config import load_sim_config
+from src.viewer.mujoco_viewer import (
+    initialize_glfw_window, setup_mujoco_camera,
+    register_callbacks, start_main_loop
+)
 import imageio
 
-# --- Load simulation-specific config ---
+# ✅ Load simulation-specific configuration
 config = load_sim_config("cube_incline")
 
-# Extract parameters from config
+# Extract simulation parameters from config
 friction_coefficient = config["FRICTION_COEFFICIENT"]
 restitution = config["RESTITUTION"]
 timestep = config["TIMESTEP"]
 incline_angle_rad = config["INCLINE_ANGLE_RAD"]
 output_video_path = config["RECORDING_PATH"]
 camera_settings = config["CAMERA"]
+record_video = config["RECORD_VIDEO"]
 
-# --- Global visualization state variables ---
-last_x, last_y = 0, 0
-left_pressed = False
-right_pressed = False
-viewport_width, viewport_height = 1200, 900
-record_video = False
-obj = 'cube'  # Fixed object type for this simulation
+# ✅ Set object type for this simulation (unique simulation requirement)
+obj = 'cube'
 
-# --- Initialize GLFW and create window ---
-if not glfw.init():
-    raise RuntimeError("Could not initialize GLFW")
-
-window = glfw.create_window(
-    viewport_width, viewport_height, "Cube on Inclined Plane Simulation", None, None
-)
-if not window:
-    glfw.terminate()
-    raise RuntimeError("Could not create GLFW window")
-glfw.make_context_current(window)
-glfw.swap_interval(1)
-last_x, last_y = glfw.get_cursor_pos(window)
-
-# --- Load and modify XML model with parameters from config ---
-xml_template_path = os.path.join(os.path.dirname(
-    __file__), "../..", "models", f"{obj}.xml")
+# ✅ Dynamically modify XML with incline angle and timestep from config
+xml_template_path = os.path.join("models", f"{obj}.xml")
 with open(xml_template_path, 'r') as file:
     xml_content = file.read()
 
 xml_content = xml_content.replace("{INCLINE_ANGLE}", str(incline_angle_rad))
 xml_content = xml_content.replace("{TIMESTEP}", str(timestep))
 
-modified_xml_path = os.path.join(os.path.dirname(
-    __file__), "../..", "models", f"{obj}.xml")
+# Save modified XML to a temporary file
+modified_xml_path = os.path.join("models", f"{obj}_temp.xml")
 with open(modified_xml_path, 'w') as file:
     file.write(xml_content)
 
+# ✅ Load the MuJoCo model from the modified XML
 model = mj.MjModel.from_xml_path(modified_xml_path)
 data = mj.MjData(model)
 
-# --- Set the cube initially at rest ---
+# ✅ Set initial conditions: cube starts from rest
 data.qvel[:6] = 0.0
 
-# --- Initialize logger to record simulation data ---
+# ✅ Initialize logger to record simulation height and trajectory
 logger = DataLogger()
-simulation_time = 0.0
 
-# --- Setup camera from configuration ---
-cam = mj.MjvCamera()
-opt = mj.MjvOption()
-mj.mjv_defaultCamera(cam)
-mj.mjv_defaultOption(opt)
-scene = mj.MjvScene(model, maxgeom=10000)
-context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
+# ✅ Initialize GLFW window using shared utility
+window = initialize_glfw_window("Cube on Inclined Plane Simulation")
 
-cam.azimuth = camera_settings.get("azimuth", 45)
-cam.elevation = camera_settings.get("elevation", -30)
-cam.distance = camera_settings.get("distance", 5)
-cam.lookat = np.array(camera_settings.get("lookat", [-2.0, -2.0, 0]))
+# ✅ Set up MuJoCo camera from config using shared utility
+cam, opt, scene, context = setup_mujoco_camera(model, camera_settings)
 
-# --- Setup recording if enabled ---
+# ✅ Setup video recording if enabled
+video_writer = None
 if record_video and output_video_path:
     os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
     video_writer = imageio.get_writer(
-        output_video_path, fps=30, codec='libx264')
-else:
-    video_writer = None
+        output_video_path, fps=30, codec="libx264")
 
-# --- GLFW mouse and keyboard callbacks ---
+# ✅ Register shared callbacks
+register_callbacks(window, model, data, cam, scene)
 
-
-def keyboard(window, key, scancode, act, mods):
-    if act == glfw.PRESS and key == glfw.KEY_BACKSPACE:
-        mj.mj_resetData(model, data)
-        mj.mj_forward(model, data)
-        print("Simulation reset.")
+# ✅ Define simulation step function to pass into the main loop
 
 
-def mouse_button(window, button, act, mods):
-    global left_pressed, right_pressed, last_x, last_y
-    if button == glfw.MOUSE_BUTTON_LEFT:
-        left_pressed = (act == glfw.PRESS)
-    if button == glfw.MOUSE_BUTTON_RIGHT:
-        right_pressed = (act == glfw.PRESS)
-    last_x, last_y = glfw.get_cursor_pos(window)
-
-
-def mouse_move(window, xpos, ypos):
-    global last_x, last_y
-    dx, dy = xpos - last_x, ypos - last_y
-    last_x, last_y = xpos, ypos
-    if left_pressed:
-        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ROTATE_V,
-                          dx / viewport_height, dy / viewport_height, scene, cam)
-    if right_pressed:
-        mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_MOVE_H,
-                          dx / viewport_height, dy / viewport_height, scene, cam)
-
-
-def scroll(window, xoffset, yoffset):
-    mj.mjv_moveCamera(model, mj.mjtMouse.mjMOUSE_ZOOM,
-                      0, -0.05 * yoffset, scene, cam)
-
-
-# --- Register input callbacks ---
-glfw.set_key_callback(window, keyboard)
-glfw.set_mouse_button_callback(window, mouse_button)
-glfw.set_cursor_pos_callback(window, mouse_move)
-glfw.set_scroll_callback(window, scroll)
-
-# --- Main simulation loop using timestep_integration ---
-while not glfw.window_should_close(window):
+def cube_incline_step(model, data, dt):
+    """
+    Single simulation step for cube on inclined plane using timestep integration.
+    Returns position for logger.
+    """
     pos_new = timestep_integration(
-        model, obj, data, dt=model.opt.timestep, restitution=restitution, friction_coeff=friction_coefficient
+        model, obj, data, dt=dt, restitution=restitution, friction_coeff=friction_coefficient
     )
-    simulation_time += model.opt.timestep
-    x, y, z = pos_new
-    logger.record(simulation_time, z, x, y)
+    return pos_new
 
-    # Render scene
-    viewport_width, viewport_height = glfw.get_framebuffer_size(window)
-    viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
-    mj.mjv_updateScene(model, data, opt, None, cam,
-                       mj.mjtCatBit.mjCAT_ALL.value, scene)
-    mj.mjr_render(viewport, scene, context)
 
-    # Record frame if recording is enabled
-    if record_video and video_writer is not None:
-        rgb_buffer = np.zeros(
-            (viewport_height, viewport_width, 3), dtype=np.uint8)
-        depth_buffer = np.zeros(
-            (viewport_height, viewport_width), dtype=np.float32)
-        mj.mjr_readPixels(rgb_buffer, depth_buffer, viewport, context)
-        frame = np.flipud(rgb_buffer)
-        video_writer.append_data(frame)
+# ✅ Start the simulation main loop
+start_main_loop(
+    window, model, data, cam, opt, scene, context,
+    step_function=cube_incline_step,
+    logger=logger,
+    record_video=record_video,
+    video_writer=video_writer
+)
 
-    glfw.swap_buffers(window)
-    glfw.poll_events()
-
-# --- Save results and close video writer ---
+# ✅ Save plots after simulation completes
 logger.save_plot("data/plots/cube/cube_height_vs_time.png")
 logger.save_trajectory_plot_3d("data/plots/cube/cube_3d_trajectory.png")
 
-if record_video and video_writer is not None:
+# ✅ Close video writer if recording was enabled
+if video_writer is not None:
     video_writer.close()
     print(f"Simulation recording saved to {output_video_path}")
 
-glfw.terminate()
+# ✅ Clean up temporary XML
+if os.path.exists(modified_xml_path):
+    os.remove(modified_xml_path)
