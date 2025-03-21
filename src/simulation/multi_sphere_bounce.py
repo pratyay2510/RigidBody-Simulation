@@ -7,55 +7,64 @@ from scipy.spatial.transform import Rotation as R
 from multi_sphere_logger import MultiSphereLogger
 from src.physics.collision import compute_collision_impulse_friction
 from src.physics.physics_utils import apply_impulse_friction
+from src.config import load_sim_config  # ✅ Central config import
 import imageio
 
-# --- Global parameters ---
-last_x, last_y = 0, 0
-left_pressed = False
-right_pressed = False
-viewport_width, viewport_height = 1200, 900
-friction_coefficient = 0.0  # Set to zero for perfectly elastic collisions
-restitution_coefficient = 1.0
+# --- Load simulation config for multi-sphere bounce ---
+config = load_sim_config("multi_sphere_bounce")
+friction_coefficient = config["FRICTION_COEFFICIENT"]
+restitution_coefficient = config["RESTITUTION"]
+timestep = config["TIMESTEP"]
+camera_settings = config["CAMERA"]
+output_video_path = config["RECORDING_PATH"]
 
-# --- Initialize GLFW ---
+# --- Initialize GLFW and create window ---
+viewport_width, viewport_height = 1200, 900
+last_x, last_y = 0, 0
+record_video = False
+left_pressed, right_pressed = False, False
+
 if not glfw.init():
     raise RuntimeError("Could not initialize GLFW")
 
 window = glfw.create_window(
-    viewport_width, viewport_height, "Multi-Sphere Rigid Body Simulation", None, None)
+    viewport_width, viewport_height,
+    "Multi-Sphere Rigid Body Simulation", None, None
+)
 if not window:
     glfw.terminate()
     raise RuntimeError("Could not create GLFW window")
+
 glfw.make_context_current(window)
 glfw.swap_interval(1)
 last_x, last_y = glfw.get_cursor_pos(window)
 
-# --- Load multi-sphere model ---
+# --- Load the MuJoCo model for multiple spheres ---
 xml_path = os.path.join(os.path.dirname(__file__), "..",
                         "models", "multi_sphere.xml")
 model = mj.MjModel.from_xml_path(xml_path)
 data = mj.MjData(model)
 
-# --- Initialize logger for all spheres ---
+# --- Setup logger for multiple spheres ---
 ball_names = ["ball1", "ball2", "ball3", "ball4"]
 logger = MultiSphereLogger(ball_names)
 simulation_time = 0.0
 
-# --- Helper function ---
+# --- Helper: compute inertia tensor in world frame ---
 
 
 def compute_inertia_tensor_world(inertia_diag, q):
     rot_matrix = R.from_quat(q[[1, 2, 3, 0]]).as_matrix()
     return rot_matrix @ np.diag(inertia_diag) @ rot_matrix.T
 
+# --- Custom simulation step with collisions and impulses ---
 
-# --- Custom simulation step for multiple spheres with frictionless impulse collision ---
+
 def custom_step_multi_sphere(model, data, dt=0.01, restitution=restitution_coefficient):
     mj.mj_forward(model, data)
 
     for ball_name in ball_names:
         ball_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, ball_name)
-
         mass = model.body_mass[ball_id]
         inertia_diag = model.body_inertia[ball_id]
         qpos = data.qpos[ball_id * 7: ball_id * 7 + 7]
@@ -99,20 +108,25 @@ def custom_step_multi_sphere(model, data, dt=0.01, restitution=restitution_coeff
         logger.record(ball_name, simulation_time, pos_new)
 
 
-# --- Visualization setup ---
+# --- Visualization setup using camera config ---
 cam = mj.MjvCamera()
 opt = mj.MjvOption()
 mj.mjv_defaultCamera(cam)
 mj.mjv_defaultOption(opt)
+
 scene = mj.MjvScene(model, maxgeom=10000)
 context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
-cam.azimuth, cam.elevation, cam.distance = 90, -30, 6
-cam.lookat = np.array([0.0, 0.0, 1.0])
+
+cam.azimuth = camera_settings["azimuth"]
+cam.elevation = camera_settings["elevation"]
+cam.distance = camera_settings["distance"]
+cam.lookat[:] = np.array(camera_settings["lookat"])
 
 # --- Recording setup ---
-output_video_path = "data/recordings/multi_sphere/multi_sphere_bounce.mp4"
-os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
-video_writer = imageio.get_writer(output_video_path, fps=30, codec='libx264')
+if record_video:
+    os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
+    video_writer = imageio.get_writer(
+        output_video_path, fps=30, codec='libx264')
 
 # --- Mouse and keyboard callbacks ---
 
@@ -150,6 +164,7 @@ def scroll(window, xoffset, yoffset):
                       0, -0.05 * yoffset, scene, cam)
 
 
+# --- Set callback handlers ---
 glfw.set_key_callback(window, keyboard)
 glfw.set_mouse_button_callback(window, mouse_button)
 glfw.set_cursor_pos_callback(window, mouse_move)
@@ -157,8 +172,8 @@ glfw.set_scroll_callback(window, scroll)
 
 # --- Main simulation loop ---
 while not glfw.window_should_close(window):
-    simulation_time += model.opt.timestep
-    custom_step_multi_sphere(model, data, dt=model.opt.timestep)
+    simulation_time += timestep
+    custom_step_multi_sphere(model, data, dt=timestep)
 
     viewport_width, viewport_height = glfw.get_framebuffer_size(window)
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
@@ -166,20 +181,23 @@ while not glfw.window_should_close(window):
                        mj.mjtCatBit.mjCAT_ALL.value, scene)
     mj.mjr_render(viewport, scene, context)
 
-    # Capture frame for video
-    rgb_buffer = np.zeros((viewport_height, viewport_width, 3), dtype=np.uint8)
-    depth_buffer = np.zeros(
-        (viewport_height, viewport_width), dtype=np.float32)
-    mj.mjr_readPixels(rgb_buffer, depth_buffer, viewport, context)
-    frame = np.flipud(rgb_buffer)
-    video_writer.append_data(frame)
+    if record_video:
+        rgb_buffer = np.zeros(
+            (viewport_height, viewport_width, 3), dtype=np.uint8)
+        depth_buffer = np.zeros(
+            (viewport_height, viewport_width), dtype=np.float32)
+        mj.mjr_readPixels(rgb_buffer, depth_buffer, viewport, context)
+        frame = np.flipud(rgb_buffer)
+        video_writer.append_data(frame)
 
     glfw.swap_buffers(window)
     glfw.poll_events()
 
-# --- Save plots and recording ---
+# --- Save plots and recordings ---
 logger.save_all_plots("data/multi_sphere/plots")
-video_writer.close()
-print(f"Simulation recording saved to {output_video_path}")
+
+if record_video:
+    video_writer.close()
+    print(f"Simulation recording saved to {output_video_path}")
 
 glfw.terminate()
