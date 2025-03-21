@@ -53,7 +53,7 @@ model = mj.MjModel.from_xml_path(modified_xml_path)
 data = mj.MjData(model)
 
 # ✅ Set initial angular velocity for the ball
-angular_velocity = np.array([0.0, 0.0, 0.0])
+angular_velocity = np.array([2.0, 2.0, 0.0])
 linear_velocity = np.array([0.0, 0.0, 0.0])
 data.qvel[:3] = linear_velocity
 data.qvel[3:6] = angular_velocity
