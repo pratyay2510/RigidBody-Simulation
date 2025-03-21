@@ -37,7 +37,7 @@ last_x, last_y = glfw.get_cursor_pos(window)
 
 # --- Load model and initialize
 xml_template_path = os.path.join(os.path.dirname(
-    __file__), "..", "models", f"{obj}.xml")
+    __file__), "../..", "models", f"{obj}.xml")
 with open(xml_template_path, 'r') as file:
     xml_content = file.read()
 
@@ -45,7 +45,7 @@ xml_content = xml_content.replace("{INCLINE_ANGLE}", str(incline_angle_rad))
 xml_content = xml_content.replace("{TIMESTEP}", str(timestep))
 
 modified_xml_path = os.path.join(os.path.dirname(
-    __file__), "..", "models", f"{obj}_inclined.xml")
+    __file__), "../..", "models", f"{obj}.xml")
 with open(modified_xml_path, 'w') as file:
     file.write(xml_content)
 

@@ -15,7 +15,7 @@ viewport_width, viewport_height = 1200, 900
 friction_coefficient = 0.6
 restitution = 0.2
 record_video = True
-obj = 'sphere'  # 'cube' or 'sphere'
+obj = 'cube'  # 'cube' or 'sphere'
 incline_angle_rad = 0.7  # Incline angle in radians (approx. 40 degrees)
 timestep = 0.009
 
