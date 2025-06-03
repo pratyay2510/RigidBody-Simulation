@@ -28,6 +28,13 @@ The framework implements and extends upon the formulations from the paper:
 
 ## 🎮 Simulations  
 
+<!-- Add visual overview images here -->
+<p align="center">
+  <img src="data/images/overview_1.png" width="400" alt="Simulation Overview 1"/>
+  <img src="data/images/overview_2.png" width="400" alt="Simulation Overview 2"/>
+  <!-- Add more as needed -->
+</p>
+
 ### 1️⃣ Single Sphere Bounce  
 
 These simulations demonstrate a single rigid sphere interacting with a flat ground and inclined surfaces, using impulse-based collision resolution and friction modeling inspired by Guendelman et al.'s formulation.  
@@ -40,13 +47,6 @@ A sphere is dropped from rest, bouncing under gravity. The restitution and frict
 
 ▶️ [Watch Recording](data/recordings/single_sphere/single_sphere_bounce_without_initial_velocity.mp4)  
 
-**Plots:**  
-- Height vs Time:  
-![Height vs Time](data/plots/single_sphere/height_vs_time_no_initial_velocity.png)  
-
-- 3D Trajectory:  
-![3D Trajectory](data/plots/single_sphere/3d_trajectory_without_initial_velocity.png)  
-
 ---
 
 #### ▶️ (b) Single Sphere Bounce with Only Initial Linear Velocity  
@@ -54,13 +54,6 @@ A sphere is dropped from rest, bouncing under gravity. The restitution and frict
 The sphere is given an initial horizontal velocity. Friction induces rotational motion over subsequent bounces.  
 
 ▶️ [Watch Recording](data/recordings/single_sphere/single_sphere_bounce_with_only_linear_velocity.mp4)  
-
-**Plots:**  
-- Height vs Time:  
-![Height vs Time](data/plots/single_sphere/height_vs_time_with_only_linear_velocity.png)  
-
-- 3D Trajectory:  
-![3D Trajectory](data/plots/single_sphere/3d_trajectory_with_only_linear_velocity.png)  
 
 ---
 
@@ -70,13 +63,6 @@ A spinning sphere without initial linear velocity interacts with the ground, tra
 
 ▶️ [Watch Recording](data/recordings/single_sphere/single_sphere_bounce_with_only_angular_velocity.mp4)  
 
-**Plots:**  
-- Height vs Time:  
-![Height vs Time](data/plots/single_sphere/height_vs_time_with_only_angular_velocity.png)  
-
-- 3D Trajectory:  
-![3D Trajectory](data/plots/single_sphere/3d_trajectory_with_only_angular_velocity.png)  
-
 ---
 
 #### ▶️ (d) Single Sphere Bounce with Both Initial Linear and Angular Velocities  
@@ -85,13 +71,6 @@ This scenario shows complex motion arising from combined linear and angular init
 
 ▶️ [Watch Recording](data/recordings/single_sphere/single_sphere_bounce_with_both_velocities.mp4)  
 
-**Plots:**  
-- Height vs Time:  
-![Height vs Time](data/plots/single_sphere/height_vs_time_with_both_velocities.png)  
-
-- 3D Trajectory:  
-![3D Trajectory](data/plots/single_sphere/3d_trajectory_with_both_velocities.png)  
-
 ---
 
 #### ▶️ (e) Single Sphere Rolling and Bouncing on an Incline  
@@ -99,13 +78,6 @@ This scenario shows complex motion arising from combined linear and angular init
 A sphere placed on an incline rolls and bounces, demonstrating combined gravitational, frictional, and collision influences.  
 
 ▶️ [Watch Recording](data/recordings/single_sphere/sphere_incline_simulation.mp4)  
-
-**Plots:**  
-- Height vs Time:  
-![Height vs Time](data/plots/single_sphere/sphere_height_vs_time_incline.png)  
-
-- 3D Trajectory:  
-![3D Trajectory](data/plots/single_sphere/sphere_3d_trajectory_incline.png)  
 
 ---
 
@@ -143,10 +115,6 @@ A cube dropped onto a flat plane shows distinct rotational and non-uniform bounc
 
 ▶️ [Watch Recording](data/recordings/cube/cube_bounce.mp4)  
 
-**Plot:**  
-- Height vs Time:  
-![Cube Height vs Time](data/plots/cube/height_vs_time_cube.png)  
-
 ---
 
 #### ▶️ (b) Cube Sliding Down an Inclined Plane  
@@ -155,14 +123,8 @@ A cube sliding down an inclined surface demonstrates frictional slip, rotations,
 
 ▶️ [Watch Recording](data/recordings/cube/cube_incline_simulation_good.mp4)  
 
-**Plots:**  
-- Height vs Time:  
-![Cube Incline Height vs Time](data/plots/cube/cube_height_vs_time_good.png)  
-
-- 3D Trajectory:  
-![Cube Incline 3D Trajectory](data/plots/cube/cube_3d_trajectory_good.png)  
-
 ---
+
 
 ## 🛠️ Implementation Details  
 
