@@ -30,8 +30,8 @@ The framework implements and extends upon the formulations from the paper:
 
 <!-- Add visual overview images here -->
 <p align="center">
-  <img src="data/images/overview_1.png" width="400" alt="Simulation Overview 1"/>
-  <img src="data/images/overview_2.png" width="400" alt="Simulation Overview 2"/>
+  <img src="data/ball.png" width="400" alt="Simulation Overview 1"/>
+  <img src="data/cube.png" width="400" alt="Simulation Overview 2"/>
   <!-- Add more as needed -->
 </p>
 
