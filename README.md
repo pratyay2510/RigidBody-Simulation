@@ -91,23 +91,6 @@ This scenario simulates two spheres colliding with predefined initial velocities
 - Combined 3D Collision Trajectory:  
 ![3D Collision](data/plots/ball_collision/3d_Collisions.png)  
 
-- **Ball 1:**  
-  - Height vs Time:  
-  ![Ball 1 Height vs Time](data/plots/ball_collision/ball1_height_vs_time.png)  
-  - 3D Trajectory:  
-  ![Ball 1 Trajectory](data/plots/ball_collision/ball1_trajectory_3d.png)  
-
-- **Ball 2:**  
-  - Height vs Time:  
-  ![Ball 2 Height vs Time](data/plots/ball_collision/ball2_height_vs_time.png)  
-  - 3D Trajectory:  
-  ![Ball 2 Trajectory](data/plots/ball_collision/ball2_trajectory_3d.png)  
-
----
-
-### 3️⃣ Cube Bouncing and Sliding on Incline  
-
----
 
 #### ▶️ (a) Cube Bouncing on a Flat Surface  
 - **Description:**  
