@@ -218,7 +218,7 @@ RigidBody-Simulation/
 
 #### 1️⃣ Clone the repository:  
 ```bash
-git clone https://github.com/Aditya-gam/RigidBody-Simulation.git
+git clone https://github.com/pratyay2510/RigidBody-Simulation.git
 cd RigidBody-Simulation
 ```
 
